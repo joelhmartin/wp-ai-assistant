@@ -127,6 +127,19 @@ class APA_REST_AI {
         $page_slug  = sanitize_text_field( $params['page_slug'] ?? '' );
         $config_key = sanitize_text_field( $params['config_key'] ?? '' );
 
+        // Direct-PHP file write: payload is { file_write: { slug, contents } }
+        // or the simpler form { file_contents: '...' } with page_slug on the request.
+        $file_write = $params['file_write'] ?? null;
+        if ( is_array( $file_write ) ) {
+            return $this->apply_file_write(
+                (string) ( $file_write['slug'] ?? $page_slug ),
+                (string) ( $file_write['contents'] ?? '' )
+            );
+        }
+        if ( isset( $params['file_contents'] ) ) {
+            return $this->apply_file_write( $page_slug, (string) $params['file_contents'] );
+        }
+
         if ( ! is_array( $config ) ) {
             return new WP_REST_Response( [ 'error' => 'Invalid config data.' ], 400 );
         }
@@ -162,6 +175,44 @@ class APA_REST_AI {
         }
 
         return rest_ensure_response( [ 'success' => true ] );
+    }
+
+    /**
+     * Write the AI-authored PHP/HTML to page-content/{slug}.php.
+     */
+    private function apply_file_write( $slug, $contents ) {
+        if ( '' === $slug ) {
+            return new WP_REST_Response( [ 'error' => 'No page slug on file_write.' ], 400 );
+        }
+        if ( '' === $contents ) {
+            return new WP_REST_Response( [ 'error' => 'Empty file contents.' ], 400 );
+        }
+
+        if ( ! class_exists( 'APA_File_Writer' ) ) {
+            return new WP_REST_Response( [ 'error' => 'File writer unavailable.' ], 500 );
+        }
+
+        $result = APA_File_Writer::write_page( $slug, $contents );
+        if ( is_wp_error( $result ) ) {
+            $code   = $result->get_error_code();
+            $status = 'syntax_error' === $code ? 422 : 500;
+            return new WP_REST_Response(
+                [
+                    'error' => $result->get_error_message(),
+                    'code'  => $code,
+                ],
+                $status
+            );
+        }
+
+        return rest_ensure_response(
+            [
+                'success' => true,
+                'slug'    => $slug,
+                'path'    => $result['path'],
+                'target'  => 'page-content',
+            ]
+        );
     }
 
     /**

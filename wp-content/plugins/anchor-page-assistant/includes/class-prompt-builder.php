@@ -21,6 +21,16 @@ class APA_Prompt_Builder {
         $sections = APA_Section_Registry::instance()->get_all();
         $cm       = APA_Config_Manager::instance();
 
+        // Direct-PHP mode short-circuits the config-oriented prompt.
+        // When the current page is backed by page-content/{slug}.php, the
+        // AI edits raw PHP/HTML instead of a JSON config.
+        if ( $page_slug && class_exists( 'APA_File_Writer' ) ) {
+            $read = APA_File_Writer::read_page( $page_slug );
+            if ( is_array( $read ) && ! empty( $read['exists'] ) ) {
+                return self::build_direct_php( $page_slug, $read['contents'], $cm );
+            }
+        }
+
         $prompt = "You are the Anchor Page Assistant, an AI that helps build and edit WordPress pages.\n\n";
 
         // Architecture context
@@ -195,6 +205,131 @@ class APA_Prompt_Builder {
         $prompt .= "3. The JSON must be the COMPLETE config (not a partial diff)\n\n";
         $prompt .= "When the user asks a question (not a change), just answer normally without JSON.\n\n";
         $prompt .= "IMPORTANT: Only output valid JSON in code blocks. The system will parse it and write it to the config file.\n";
+
+        return $prompt;
+    }
+
+    /**
+     * Build the system prompt for direct-PHP mode.
+     *
+     * Used when the current page has a page-content/{slug}.php file.
+     * The AI edits raw PHP/HTML instead of emitting JSON config.
+     *
+     * @param string                  $page_slug Current page slug.
+     * @param string                  $contents  Current file contents.
+     * @param APA_Config_Manager|null $cm        Config manager (for helper context).
+     * @return string
+     */
+    private static function build_direct_php( $page_slug, $contents, $cm = null ) {
+        $prompt  = "You are the Anchor Page Assistant, an AI that edits WordPress pages directly as PHP/HTML files.\n\n";
+
+        $prompt .= "## How This Works\n\n";
+        $prompt .= "This page is a direct-PHP file at `page-content/{$page_slug}.php`. ";
+        $prompt .= "You edit the raw PHP/HTML — not a config array. ";
+        $prompt .= "The file renders inside header.php + footer.php (so do NOT include `get_header()` or `get_footer()`).\n\n";
+        $prompt .= "When the user asks for changes, return the COMPLETE updated file contents inside a single ```php code fence. ";
+        $prompt .= "The system parses the fenced block and writes it to disk atomically after a `php -l` syntax check. ";
+        $prompt .= "If the user asks a question (not a change), answer normally without a code fence.\n\n";
+
+        $prompt .= "## Helpers You Can Call\n\n";
+        $prompt .= "- `anchor_get_site_config()` — business info (name, phone, email, address, social, logo).\n";
+        $prompt .= "- `anchor_get_data( 'services' | 'team' | 'products' )` — shared entity arrays from `data.php`.\n";
+        $prompt .= "- `anchor_resolve_media( 'key' )` — resolve a named media key to a URL (see Media Keys below).\n";
+        $prompt .= "- `anchor_get_nav( 'primary' | 'footer' )` (if present) — nav menus.\n";
+        $prompt .= "- `get_template_part( 'template-parts/components/{name}', null, \$args )` — reusable components.\n";
+        $prompt .= "- `get_template_part( 'template-parts/partials/{name}' )` — reusable page sections (cta-band, testimonials).\n";
+        $prompt .= "- Standard WordPress: `esc_html()`, `esc_attr()`, `esc_url()`, `wp_kses_post()`, `the_permalink()`, etc.\n\n";
+
+        $prompt .= "## Available Components (template-parts/components/)\n\n";
+        $components_dir = trailingslashit( get_template_directory() ) . 'template-parts/components';
+        if ( is_dir( $components_dir ) ) {
+            $files = glob( $components_dir . '/*.php' );
+            if ( $files ) {
+                foreach ( $files as $f ) {
+                    $prompt .= '  - ' . basename( $f, '.php' ) . "\n";
+                }
+            }
+        }
+        $prompt .= "\n";
+
+        $prompt .= "## Available Partials (template-parts/partials/)\n\n";
+        if ( class_exists( 'APA_File_Writer' ) ) {
+            foreach ( APA_File_Writer::list_partials() as $p ) {
+                $prompt .= "  - `get_template_part( 'template-parts/partials/{$p['slug']}' )`\n";
+            }
+        }
+        $prompt .= "\n";
+
+        // Section templates are still available.
+        $prompt .= "## Available Section Templates (template-parts/sections/)\n\n";
+        $prompt .= "Each of these wraps its own `<section class=\"anchor-section\">`. Call via the section renderer:\n";
+        $prompt .= "```php\n";
+        $prompt .= "anchor_render_section([\n";
+        $prompt .= "    'type' => 'hero',\n";
+        $prompt .= "    'variant' => 'full',\n";
+        $prompt .= "    'props' => [ 'heading' => '...', 'image' => 'hero_key' ],\n";
+        $prompt .= "]);\n";
+        $prompt .= "```\n";
+        $sections_dir = trailingslashit( get_template_directory() ) . 'template-parts/sections';
+        if ( is_dir( $sections_dir ) ) {
+            $files = glob( $sections_dir . '/*.php' );
+            if ( $files ) {
+                foreach ( $files as $f ) {
+                    $slug = basename( $f, '.php' );
+                    $prompt .= "  - type: `" . str_replace( '-', '_', $slug ) . "`\n";
+                }
+            }
+        }
+        $prompt .= "\nYou are NOT limited to these types. Inline raw HTML is fine. Use section templates when they fit, write raw markup when they don't.\n\n";
+
+        // Media keys context
+        if ( $cm ) {
+            $media = $cm->get_media();
+            if ( ! empty( $media ) ) {
+                $prompt .= "## Media Keys (pass to anchor_resolve_media())\n\n";
+                foreach ( $media as $key => $value ) {
+                    $display = is_string( $value ) ? $value : "(attachment #{$value})";
+                    $prompt .= "  - '{$key}' → {$display}\n";
+                }
+                $prompt .= "\n";
+            }
+
+            $site = $cm->get_site();
+            if ( ! empty( $site ) ) {
+                $prompt .= "## Site Info (available via anchor_get_site_config())\n\n";
+                $prompt .= "Business: " . ( $site['name'] ?? 'Unknown' ) . "\n";
+                if ( ! empty( $site['phone'] ) )   $prompt .= "Phone: {$site['phone']}\n";
+                if ( ! empty( $site['email'] ) )   $prompt .= "Email: {$site['email']}\n";
+                if ( ! empty( $site['address'] ) ) $prompt .= "Address: {$site['address']}\n";
+                $prompt .= "\n";
+            }
+
+            $data = $cm->get_data();
+            if ( ! empty( $data['services'] ) ) {
+                $prompt .= "## Services (via anchor_get_data('services'))\n\n";
+                foreach ( $data['services'] as $s ) {
+                    $prompt .= "  - {$s['title']} (id: {$s['id']}, icon: {$s['icon']})\n";
+                }
+                $prompt .= "\n";
+            }
+            if ( ! empty( $data['team'] ) ) {
+                $prompt .= "## Team (via anchor_get_data('team'))\n\n";
+                foreach ( $data['team'] as $m ) {
+                    $prompt .= "  - {$m['name']} ({$m['role']})\n";
+                }
+                $prompt .= "\n";
+            }
+        }
+
+        $prompt .= "## Current File: page-content/{$page_slug}.php\n\n";
+        $prompt .= "```php\n" . $contents . "\n```\n\n";
+
+        $prompt .= "## Response Format\n\n";
+        $prompt .= "1. A short explanation of the change.\n";
+        $prompt .= "2. The COMPLETE updated file in a single ```php fenced block. Always include the opening `<?php` tag.\n";
+        $prompt .= "3. Never include `get_header()` or `get_footer()` — the page template wraps those.\n";
+        $prompt .= "4. Never include the triple backticks inside the PHP itself.\n";
+        $prompt .= "5. If the user asks a question and you are not changing anything, skip the code block.\n";
 
         return $prompt;
     }

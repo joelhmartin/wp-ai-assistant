@@ -107,8 +107,9 @@ class APA_AI_Handler {
         }
 
         return [
-            'reply'  => $reply,
-            'config' => self::extract_json( $reply ),
+            'reply'        => $reply,
+            'config'       => self::extract_json( $reply ),
+            'file_contents' => self::extract_php_file( $reply ),
         ];
     }
 
@@ -148,8 +149,9 @@ class APA_AI_Handler {
         $reply = $body['choices'][0]['message']['content'] ?? '';
 
         return [
-            'reply'  => $reply,
-            'config' => self::extract_json( $reply ),
+            'reply'        => $reply,
+            'config'       => self::extract_json( $reply ),
+            'file_contents' => self::extract_php_file( $reply ),
         ];
     }
 
@@ -160,6 +162,22 @@ class APA_AI_Handler {
             $decoded = json_decode( $matches[1], true );
             if ( JSON_ERROR_NONE === json_last_error() && is_array( $decoded ) ) {
                 return $decoded;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract the first ```php fenced code block from a reply.
+     * Used in direct-PHP mode where the AI returns a full file.
+     *
+     * @return string|null Raw file contents, or null if no block found.
+     */
+    private static function extract_php_file( $text ) {
+        if ( preg_match( '/```php\s*([\s\S]*?)\s*```/', $text, $matches ) ) {
+            $contents = trim( $matches[1] );
+            if ( '' !== $contents ) {
+                return $contents;
             }
         }
         return null;
