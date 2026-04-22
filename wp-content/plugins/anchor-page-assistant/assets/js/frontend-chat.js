@@ -51,6 +51,7 @@
                     '<span class="apa-fe-slug">' + esc( data.pageSlug || 'unknown page' ) + '</span>' +
                 '</div>' +
                 '<div class="apa-fe-header-actions">' +
+                    ( data.hasPageContentFile ? '<button id="apa-fe-edit-code" class="apa-fe-admin-link" title="Edit raw PHP for this page">Edit code</button>' : '' ) +
                     '<button id="apa-fe-undo" class="apa-fe-admin-link" title="Undo last change">Undo</button>' +
                     '<button id="apa-fe-clear" class="apa-fe-admin-link" title="Clear chat">Clear</button>' +
                     '<a href="' + esc( data.adminUrl ) + '" class="apa-fe-admin-link" title="Open editor">Editor</a>' +
@@ -81,6 +82,20 @@
         document.getElementById( 'apa-fe-browse' ).addEventListener( 'click', openMediaFrame );
         document.getElementById( 'apa-fe-clear' ).addEventListener( 'click', clearChat );
         document.getElementById( 'apa-fe-undo' ).addEventListener( 'click', undoLastChange );
+
+        var editCodeBtn = document.getElementById( 'apa-fe-edit-code' );
+        if ( editCodeBtn ) {
+            editCodeBtn.addEventListener( 'click', function() {
+                if ( ! window.APA || ! window.APA.codeEditor ) {
+                    addMsg( 'assistant', 'Code editor is still loading. Try again in a moment.' );
+                    return;
+                }
+                window.APA.codeEditor.open( data.pageSlug, function( info ) {
+                    addMsg( 'assistant', 'Saved ' + ( info.slug || data.pageSlug ) + '.php.' );
+                    showRefreshButton();
+                } );
+            } );
+        }
         document.getElementById( 'apa-fe-input' ).addEventListener( 'keydown', function( e ) {
             if ( e.key === 'Enter' && ! e.shiftKey ) {
                 e.preventDefault();
@@ -142,11 +157,28 @@
             history.push( { role: 'user', content: message } );
             history.push( { role: 'assistant', content: result.reply } );
 
-            // Show reply without the JSON block
-            var displayText = result.reply.replace( /```json[\s\S]*?```/g, '' ).trim();
+            // Strip both JSON and PHP fenced blocks from the rendered reply.
+            var displayText = result.reply
+                .replace( /```json[\s\S]*?```/g, '' )
+                .replace( /```php[\s\S]*?```/g, '' )
+                .trim();
+
+            // Direct-PHP mode: AI returned a full file replacement.
+            if ( result.file_contents && data.hasPageContentFile && data.pageSlug ) {
+                var phpMsg = addMsg( 'assistant', displayText || 'Updated file ready to apply.' );
+                var phpBtn = document.createElement( 'button' );
+                phpBtn.className = 'apa-fe-apply';
+                phpBtn.textContent = 'Apply & Refresh';
+                phpBtn.addEventListener( 'click', function() {
+                    applyFileContents( result.file_contents, phpBtn );
+                } );
+                phpMsg.appendChild( phpBtn );
+                return;
+            }
+
             var msgEl = addMsg( 'assistant', displayText );
 
-            // Apply button if config was returned
+            // Apply button if config was returned (config-driven pages).
             if ( result.config && data.pageSlug ) {
                 var btn = document.createElement( 'button' );
                 btn.className = 'apa-fe-apply';
@@ -161,6 +193,49 @@
             thinkingEl.remove();
             addMsg( 'assistant', 'Error: ' + err.message );
         } );
+    }
+
+    function applyFileContents( contents, btn ) {
+        btn.disabled = true;
+        btn.textContent = 'Applying...';
+
+        fetch( data.restBase + 'ai/apply', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify( {
+                file_contents: contents,
+                page_slug: data.pageSlug,
+            } ),
+        } )
+        .then( function( r ) { return r.json().then( function( body ) { return { ok: r.ok, body: body }; } ); } )
+        .then( function( res ) {
+            if ( res.ok && res.body.success ) {
+                btn.textContent = 'Applied';
+                btn.style.background = '#46b450';
+                showRefreshButton();
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Retry';
+                btn.style.background = '#d63638';
+                addMsg( 'assistant', 'Failed: ' + ( ( res.body && res.body.error ) || 'Unknown error' ) );
+            }
+        } )
+        .catch( function( err ) {
+            btn.disabled = false;
+            btn.textContent = 'Retry';
+            addMsg( 'assistant', 'Failed: ' + err.message );
+        } );
+    }
+
+    function showRefreshButton() {
+        var msg = addMsg( 'assistant', 'Refresh to see your changes.' );
+        var btn = document.createElement( 'button' );
+        btn.className = 'apa-fe-apply';
+        btn.textContent = 'Refresh preview';
+        btn.addEventListener( 'click', function() {
+            window.location.reload();
+        } );
+        msg.appendChild( btn );
     }
 
     function apply( config, btn ) {
@@ -528,7 +603,8 @@
             selectedContext = '[Section ' + sectionIndex + ': type=' + sectionType +
                 ( sectionVariant ? ', variant=' + sectionVariant : '' ) +
                 ( headingText ? ', heading="' + headingText + '"' : '' ) +
-                ( classes ? ', element=' + classes : '' ) + ']';
+                ( classes ? ', element=' + classes : '' ) +
+                ( data.pageContentPath ? ', file=' + data.pageContentPath : '' ) + ']';
 
             // Open chat and focus input (don't paste context into input)
             if ( ! isOpen ) togglePanel();
