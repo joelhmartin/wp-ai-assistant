@@ -57,6 +57,13 @@ class APA_Frontend_Chat {
             APA_VERSION
         );
 
+        wp_enqueue_style(
+            'apa-code-editor',
+            APA_PLUGIN_URL . 'assets/css/code-editor.css',
+            [ 'apa-frontend-chat' ],
+            APA_VERSION
+        );
+
         wp_enqueue_style( 'dashicons' );
 
         wp_enqueue_media();
@@ -65,6 +72,14 @@ class APA_Frontend_Chat {
             'apa-frontend-chat',
             APA_PLUGIN_URL . 'assets/js/frontend-chat.js',
             [ 'jquery', 'media-views' ],
+            APA_VERSION,
+            true
+        );
+
+        wp_enqueue_script(
+            'apa-code-editor',
+            APA_PLUGIN_URL . 'assets/js/code-editor.js',
+            [ 'apa-frontend-chat' ],
             APA_VERSION,
             true
         );
@@ -108,15 +123,23 @@ class APA_Frontend_Chat {
             }
         }
 
+        $slug                  = $this->get_current_slug() ?: '';
+        $has_page_content_file = false;
+        if ( $slug && function_exists( 'anchor_get_page_content_path' ) ) {
+            $has_page_content_file = '' !== anchor_get_page_content_path( $slug );
+        }
+
         wp_localize_script( 'apa-frontend-chat', 'apaFrontend', [
-            'restBase'    => rest_url( 'anchor-assistant/v1/' ),
-            'wpRestBase'  => rest_url( 'wp/v2/' ),
-            'nonce'       => wp_create_nonce( 'wp_rest' ),
-            'pageSlug'    => $this->get_current_slug() ?: '',
-            'pageTitle'   => wp_title( '', false ) ?: get_the_title(),
-            'adminUrl'    => admin_url( 'admin.php?page=anchor-page-assistant' ),
-            'sections'    => APA_Section_Registry::instance()->get_labels(),
-            'postContext' => $post_context,
+            'restBase'           => rest_url( 'anchor-assistant/v1/' ),
+            'wpRestBase'         => rest_url( 'wp/v2/' ),
+            'nonce'              => wp_create_nonce( 'wp_rest' ),
+            'pageSlug'           => $slug,
+            'pageTitle'          => wp_title( '', false ) ?: get_the_title(),
+            'adminUrl'           => admin_url( 'admin.php?page=anchor-page-assistant' ),
+            'sections'           => APA_Section_Registry::instance()->get_labels(),
+            'postContext'        => $post_context,
+            'hasPageContentFile' => $has_page_content_file,
+            'pageContentPath'    => $has_page_content_file ? ( 'page-content/' . $slug . '.php' ) : '',
         ] );
     }
 
