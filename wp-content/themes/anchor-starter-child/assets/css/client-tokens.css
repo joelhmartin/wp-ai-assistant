@@ -1,0 +1,66 @@
+/* ==========================================================================
+   DEKA Dental Lasers — editorial/atelier token set.
+   Palette:
+     #040541  ink (near-black navy)         — primary dark surface + text
+     #2b529f  sapphire                      — accent, italics, hairline dots
+     #8b8eb2  sapphire-soft                 — secondary neutral
+     #f5f4ef  ivory                         — warm base background
+     #eae7dd  bone                          — alt warm section background
+     oklch(0.72 0.08 80) brass              — warm accent for dark sections
+   ========================================================================== */
+
+:root {
+    /* Brand ramp — cobalt/sapphire. */
+    --anchor-brand-50:  #eef1f9;
+    --anchor-brand-100: #d5ddee;
+    --anchor-brand-200: #abb9dd;
+    --anchor-brand-300: #7f94ca;
+    --anchor-brand-400: #5473b5;
+    --anchor-brand-500: #2b529f;
+    --anchor-brand-600: #1f3e7a;
+    --anchor-brand-700: #172f5e;
+    --anchor-brand-800: #0f214a;
+    --anchor-brand-900: #081339;
+    --anchor-brand-950: #040541;
+
+    --anchor-brand-400-rgb: 84, 115, 181;
+    --anchor-brand-500-rgb: 43, 82, 159;
+    --anchor-brand-600-rgb: 31, 62, 122;
+
+    /* Accent — sapphire-soft slate. */
+    --anchor-accent-400: #8b8eb2;
+    --anchor-accent-500: #6265a0;
+    --anchor-accent-600: #454891;
+
+    /* Surface — warm ivory / bone. */
+    --anchor-surface-50:  #ffffff;
+    --anchor-surface-100: #f5f4ef;   /* ivory */
+    --anchor-surface-200: #eae7dd;   /* bone */
+    --anchor-surface-300: #ddd8c9;
+    --anchor-surface-400: #b7bccf;
+
+    --anchor-surface-200-rgb: 234, 231, 221;
+    --anchor-surface-300-rgb: 221, 216, 201;
+
+    /* Navy surfaces = DEKA ink. */
+    --anchor-navy:       #040541;
+    --anchor-navy-light: #0a0b4e;
+    --anchor-navy-dark:  #02022a;
+    --anchor-navy-rgb:   4, 5, 65;
+
+    /* Editorial semantic tokens (consumed by deka-home.css). */
+    --deka-ink:            #040541;
+    --deka-ink-2:          #0a0b4e;
+    --deka-sapphire:       #2b529f;
+    --deka-sapphire-soft:  #8b8eb2;
+    --deka-ivory:          #f5f4ef;
+    --deka-bone:           #eae7dd;
+    --deka-bone-2:         #ddd8c9;
+    --deka-brass:          oklch(0.72 0.08 80);
+    --deka-brass-deep:     oklch(0.58 0.09 75);
+    --deka-rule:           rgba(4, 5, 65, 0.14);
+    --deka-rule-light:     rgba(245, 244, 239, 0.18);
+    --deka-serif:          'Cormorant Garamond', 'Canela', Didot, serif;
+    --deka-sans:           'Inter', 'Plus Jakarta Sans', -apple-system, Helvetica, Arial, sans-serif;
+    --deka-mono:           'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+}

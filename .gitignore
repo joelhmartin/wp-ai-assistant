@@ -1,0 +1,32 @@
+# Deny everything at the WP root, then allow only what this repo tracks.
+/*
+
+# Top-level allow list
+!/.gitignore
+!/CLAUDE.md
+!/wp-content/
+
+# Inside wp-content: deny everything, then allow only themes/ and plugins/
+/wp-content/*
+!/wp-content/themes/
+!/wp-content/plugins/
+
+# Inside themes/: only the two we own
+/wp-content/themes/*
+!/wp-content/themes/anchor-framework/
+!/wp-content/themes/anchor-starter-child/
+
+# Inside plugins/: only the one we own
+/wp-content/plugins/*
+!/wp-content/plugins/anchor-page-assistant/
+
+# Common build / local-only junk inside our tracked dirs
+**/node_modules/
+**/.DS_Store
+**/*.log
+**/.bak
+**/*.bak
+**/*.swp
+**/*.tmp
+**/.vscode/
+**/.idea/

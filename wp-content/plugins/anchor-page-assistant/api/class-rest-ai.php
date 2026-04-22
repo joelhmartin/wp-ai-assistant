@@ -1,0 +1,299 @@
+<?php
+/**
+ * REST API — AI chat endpoint.
+ *
+ * @package Anchor_Page_Assistant
+ */
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+class APA_REST_AI {
+
+    private static $instance = null;
+
+    public static function instance() {
+        if ( null === self::$instance ) {
+            self::$instance = new self();
+            self::$instance->init();
+        }
+        return self::$instance;
+    }
+
+    private function init() {
+        add_action( 'rest_api_init', [ $this, 'register_routes' ] );
+    }
+
+    public function register_routes() {
+        // Chat endpoint.
+        register_rest_route( 'anchor-assistant/v1', '/ai/chat', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'chat' ],
+            'permission_callback' => function() {
+                return current_user_can( 'manage_options' );
+            },
+        ] );
+
+        // API key management.
+        register_rest_route( 'anchor-assistant/v1', '/ai/settings', [
+            [
+                'methods'             => 'GET',
+                'callback'            => [ $this, 'get_settings' ],
+                'permission_callback' => function() {
+                    return current_user_can( 'manage_options' );
+                },
+            ],
+            [
+                'methods'             => 'POST',
+                'callback'            => [ $this, 'save_settings' ],
+                'permission_callback' => function() {
+                    return current_user_can( 'manage_options' );
+                },
+            ],
+        ] );
+
+        // Apply config from AI response.
+        register_rest_route( 'anchor-assistant/v1', '/ai/apply', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'apply_config' ],
+            'permission_callback' => function() {
+                return current_user_can( 'manage_options' );
+            },
+        ] );
+    }
+
+    /**
+     * Handle a chat message.
+     */
+    public function chat( $request ) {
+        $params       = $request->get_json_params();
+        $message      = sanitize_textarea_field( $params['message'] ?? '' );
+        $history      = $params['history'] ?? [];
+        $page_slug    = sanitize_text_field( $params['page_slug'] ?? '' );
+        $config_key   = sanitize_text_field( $params['config_key'] ?? '' );
+        $post_context = $params['post_context'] ?? null;
+
+        if ( empty( $message ) ) {
+            return new WP_REST_Response( [ 'error' => 'Message is required.' ], 400 );
+        }
+
+        $result = APA_AI_Handler::instance()->chat(
+            $message,
+            $history,
+            $page_slug ?: null,
+            $config_key ?: null,
+            $post_context
+        );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_REST_Response( [ 'error' => $result->get_error_message() ], 500 );
+        }
+
+        return rest_ensure_response( $result );
+    }
+
+    /**
+     * Get AI settings (key configured status, not the key itself).
+     */
+    public function get_settings() {
+        $handler = APA_AI_Handler::instance();
+        return rest_ensure_response( [
+            'configured' => $handler->is_configured(),
+            'model'      => APA_AI_Handler::MODEL,
+        ] );
+    }
+
+    /**
+     * Save AI settings.
+     */
+    public function save_settings( $request ) {
+        $params = $request->get_json_params();
+
+        if ( isset( $params['api_key'] ) ) {
+            APA_AI_Handler::instance()->set_api_key( $params['api_key'] );
+        }
+
+        return rest_ensure_response( [
+            'success'    => true,
+            'configured' => APA_AI_Handler::instance()->is_configured(),
+        ] );
+    }
+
+    /**
+     * Apply a config change from the AI response.
+     */
+    public function apply_config( $request ) {
+        $params     = $request->get_json_params();
+        $config     = $params['config'] ?? null;
+        $page_slug  = sanitize_text_field( $params['page_slug'] ?? '' );
+        $config_key = sanitize_text_field( $params['config_key'] ?? '' );
+
+        if ( ! is_array( $config ) ) {
+            return new WP_REST_Response( [ 'error' => 'Invalid config data.' ], 400 );
+        }
+
+        // Handle menu actions.
+        if ( ! empty( $config['menu_action'] ) ) {
+            return $this->apply_menu_action( $config );
+        }
+
+        // Handle post content actions.
+        if ( ! empty( $config['post_action'] ) ) {
+            return $this->apply_post_action( $config );
+        }
+
+        $cm = APA_Config_Manager::instance();
+
+        if ( $page_slug ) {
+            $result = $cm->save_page( $page_slug, $config );
+        } elseif ( $config_key ) {
+            switch ( $config_key ) {
+                case 'site':    $result = $cm->save_site( $config ); break;
+                case 'data':    $result = $cm->save_data( $config ); break;
+                case 'globals': $result = $cm->save_globals( $config ); break;
+                case 'media':   $result = $cm->save_media( $config ); break;
+                default:        $result = new WP_Error( 'invalid_config', 'Unknown config key.' );
+            }
+        } else {
+            return new WP_REST_Response( [ 'error' => 'No target specified.' ], 400 );
+        }
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_REST_Response( [ 'error' => $result->get_error_message() ], 500 );
+        }
+
+        return rest_ensure_response( [ 'success' => true ] );
+    }
+
+    /**
+     * Handle menu actions from the AI.
+     */
+    private function apply_menu_action( $config ) {
+        $action   = $config['menu_action'];
+        $location = sanitize_text_field( $config['location'] ?? 'primary' );
+        $locations = get_nav_menu_locations();
+
+        if ( empty( $locations[ $location ] ) ) {
+            return new WP_REST_Response( [ 'error' => "Menu '{$location}' not found." ], 404 );
+        }
+
+        $menu_id = $locations[ $location ];
+
+        switch ( $action ) {
+            case 'add_item':
+                $item_data = [
+                    'menu-item-title'     => sanitize_text_field( $config['title'] ?? '' ),
+                    'menu-item-url'       => esc_url_raw( $config['url'] ?? '' ),
+                    'menu-item-status'    => 'publish',
+                    'menu-item-parent-id' => absint( $config['parent_id'] ?? 0 ),
+                    'menu-item-type'      => 'custom',
+                ];
+                $result = wp_update_nav_menu_item( $menu_id, 0, $item_data );
+                if ( is_wp_error( $result ) ) {
+                    return new WP_REST_Response( [ 'error' => $result->get_error_message() ], 500 );
+                }
+                return rest_ensure_response( [ 'success' => true, 'item_id' => $result ] );
+
+            case 'delete_item':
+                $id = absint( $config['id'] ?? 0 );
+                wp_delete_post( $id, true );
+                return rest_ensure_response( [ 'success' => true ] );
+
+            case 'replace_menu':
+                $tree = $config['items'] ?? [];
+                // Clear existing.
+                $existing = wp_get_nav_menu_items( $menu_id ) ?: [];
+                foreach ( $existing as $item ) {
+                    wp_delete_post( $item->ID, true );
+                }
+                // Insert new tree.
+                $pos = 1;
+                $this->insert_menu_tree( $menu_id, $tree, 0, $pos );
+                return rest_ensure_response( [ 'success' => true ] );
+
+            default:
+                return new WP_REST_Response( [ 'error' => 'Unknown menu action.' ], 400 );
+        }
+    }
+
+    private function insert_menu_tree( $menu_id, $items, $parent_id, &$position ) {
+        foreach ( $items as $item ) {
+            $item_data = [
+                'menu-item-title'     => sanitize_text_field( $item['title'] ?? '' ),
+                'menu-item-url'       => esc_url_raw( $item['url'] ?? '' ),
+                'menu-item-status'    => 'publish',
+                'menu-item-parent-id' => $parent_id,
+                'menu-item-position'  => $position++,
+                'menu-item-type'      => 'custom',
+            ];
+            $new_id = wp_update_nav_menu_item( $menu_id, 0, $item_data );
+            if ( ! is_wp_error( $new_id ) && ! empty( $item['children'] ) ) {
+                $this->insert_menu_tree( $menu_id, $item['children'], $new_id, $position );
+            }
+        }
+    }
+
+    /**
+     * Handle post content actions (edit blog/event content).
+     */
+    private function apply_post_action( $config ) {
+        $post_id = absint( $config['post_id'] ?? 0 );
+        if ( ! $post_id ) {
+            return new WP_REST_Response( [ 'error' => 'No post_id specified.' ], 400 );
+        }
+
+        $post = get_post( $post_id );
+        if ( ! $post ) {
+            return new WP_REST_Response( [ 'error' => 'Post not found.' ], 404 );
+        }
+
+        $update = [ 'ID' => $post_id ];
+
+        if ( isset( $config['title'] ) ) {
+            $update['post_title'] = sanitize_text_field( $config['title'] );
+        }
+        if ( isset( $config['content'] ) ) {
+            $update['post_content'] = wp_kses_post( $config['content'] );
+        }
+        if ( isset( $config['excerpt'] ) ) {
+            $update['post_excerpt'] = sanitize_textarea_field( $config['excerpt'] );
+        }
+
+        $result = wp_update_post( $update, true );
+
+        if ( is_wp_error( $result ) ) {
+            return new WP_REST_Response( [ 'error' => $result->get_error_message() ], 500 );
+        }
+
+        // Featured image.
+        if ( isset( $config['featured_image_id'] ) ) {
+            $img_id = absint( $config['featured_image_id'] );
+            if ( $img_id ) {
+                set_post_thumbnail( $post_id, $img_id );
+            } else {
+                delete_post_thumbnail( $post_id );
+            }
+        }
+
+        // Yoast SEO meta.
+        if ( isset( $config['seo_title'] ) ) {
+            update_post_meta( $post_id, '_yoast_wpseo_title', sanitize_text_field( $config['seo_title'] ) );
+        }
+        if ( isset( $config['seo_description'] ) ) {
+            update_post_meta( $post_id, '_yoast_wpseo_metadesc', sanitize_text_field( $config['seo_description'] ) );
+        }
+        if ( isset( $config['seo_focus_kw'] ) ) {
+            update_post_meta( $post_id, '_yoast_wpseo_focuskw', sanitize_text_field( $config['seo_focus_kw'] ) );
+        }
+        if ( isset( $config['seo_canonical'] ) ) {
+            update_post_meta( $post_id, '_yoast_wpseo_canonical', esc_url_raw( $config['seo_canonical'] ) );
+        }
+        if ( isset( $config['seo_og_title'] ) ) {
+            update_post_meta( $post_id, '_yoast_wpseo_opengraph-title', sanitize_text_field( $config['seo_og_title'] ) );
+        }
+        if ( isset( $config['seo_og_desc'] ) ) {
+            update_post_meta( $post_id, '_yoast_wpseo_opengraph-description', sanitize_text_field( $config['seo_og_desc'] ) );
+        }
+
+        return rest_ensure_response( [ 'success' => true, 'post_id' => $post_id ] );
+    }
+}
