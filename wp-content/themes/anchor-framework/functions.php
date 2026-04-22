@@ -27,6 +27,7 @@ $anchor_inc_files = array(
     '/inc/media-resolver.php',
     '/inc/helpers.php',
     '/inc/validation.php',
+    '/inc/page-content-loader.php',
     '/inc/class-anchor-nav-walker.php',
     '/inc/class-anchor-mobile-walker.php',
     '/inc/class-anchor-footer-walker.php',
