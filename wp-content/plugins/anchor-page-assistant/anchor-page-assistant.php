@@ -18,6 +18,7 @@ define( 'APA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 // Core includes.
 require_once APA_PLUGIN_DIR . 'includes/class-config-writer.php';
+require_once APA_PLUGIN_DIR . 'includes/class-file-writer.php';
 require_once APA_PLUGIN_DIR . 'includes/class-section-schema.php';
 require_once APA_PLUGIN_DIR . 'includes/class-prompt-builder.php';
 
@@ -36,6 +37,7 @@ require_once APA_PLUGIN_DIR . 'api/class-rest-ai.php';
 require_once APA_PLUGIN_DIR . 'api/class-rest-menus.php';
 require_once APA_PLUGIN_DIR . 'api/class-rest-media.php';
 require_once APA_PLUGIN_DIR . 'api/class-rest-history.php';
+require_once APA_PLUGIN_DIR . 'api/class-rest-files.php';
 
 /**
  * Boot the plugin.
@@ -62,5 +64,6 @@ function apa_init() {
     APA_REST_Menus::instance();
     APA_REST_Media::instance();
     APA_REST_History::instance();
+    APA_REST_Files::instance();
 }
 add_action( 'after_setup_theme', 'apa_init', 20 );
