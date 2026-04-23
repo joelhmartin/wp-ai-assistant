@@ -284,12 +284,18 @@ class APA_Prompt_Builder {
 
         // Inject the selected section template so the AI knows its actual markup and CSS classes.
         if ( $selected_section_type ) {
-            $section_file = str_replace( '_', '-', $selected_section_type ) . '.php';
-            $section_path = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $section_file;
-            if ( file_exists( $section_path ) ) {
-                $prompt .= "## Selected Section Template: template-parts/sections/{$section_file}\n\n";
-                $prompt .= "This is the PHP template that renders the selected section. Its CSS class names are the correct selectors to use when making style changes.\n\n";
-                $prompt .= "```php\n" . file_get_contents( $section_path ) . "\n```\n\n";
+            $valid_types = array_keys( APA_Section_Registry::instance()->get_all() );
+            if ( in_array( $selected_section_type, $valid_types, true ) ) {
+                $section_file = str_replace( '_', '-', $selected_section_type ) . '.php';
+                $section_path = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $section_file;
+                if ( file_exists( $section_path ) ) {
+                    $tpl = file_get_contents( $section_path );
+                    if ( false !== $tpl ) {
+                        $prompt .= "## Selected Section Template: template-parts/sections/{$section_file}\n\n";
+                        $prompt .= "This is the PHP template that renders the selected section. Its CSS class names are the correct selectors to use when making style changes.\n\n";
+                        $prompt .= "```php\n" . $tpl . "\n```\n\n";
+                    }
+                }
             }
         }
 
