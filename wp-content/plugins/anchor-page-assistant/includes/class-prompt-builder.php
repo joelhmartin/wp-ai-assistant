@@ -299,6 +299,29 @@ class APA_Prompt_Builder {
             }
         }
 
+        // Inject child-theme CSS so the AI knows actual selectors and can write precise changes.
+        $css_files = [
+            'deka-home.css'        => trailingslashit( get_stylesheet_directory() ) . 'assets/css/deka-home.css',
+            'client-overrides.css' => trailingslashit( get_stylesheet_directory() ) . 'assets/css/client-overrides.css',
+            'client-tokens.css'    => trailingslashit( get_stylesheet_directory() ) . 'assets/css/client-tokens.css',
+        ];
+        $css_found = [];
+        foreach ( $css_files as $name => $path ) {
+            if ( file_exists( $path ) ) {
+                $css = file_get_contents( $path );
+                if ( false !== $css ) {
+                    $css_found[ $name ] = $css;
+                }
+            }
+        }
+        if ( $css_found ) {
+            $prompt .= "## Child-Theme CSS Files\n\n";
+            $prompt .= "These are the editable CSS files. When asked to make a style change, return the COMPLETE updated file in a single \`\`\`css fenced block. The first line inside the fence must be a comment identifying the file: `/* file: deka-home.css */` (or whichever filename). The system will detect this and write it to disk.\n\n";
+            foreach ( $css_found as $name => $css ) {
+                $prompt .= "### {$name}\n\n\`\`\`css\n{$css}\n\`\`\`\n\n";
+            }
+        }
+
         // Media keys context
         if ( $cm ) {
             $media = $cm->get_media();
@@ -347,6 +370,8 @@ class APA_Prompt_Builder {
         $prompt .= "3. Never include `get_header()` or `get_footer()` — the page template wraps those.\n";
         $prompt .= "4. Never include the triple backticks inside the PHP itself.\n";
         $prompt .= "5. If the user asks a question and you are not changing anything, skip the code block.\n";
+        $prompt .= "6. For CSS-only changes: return the COMPLETE updated CSS file in a \`\`\`css fenced block. First line inside the fence must be `/* file: deka-home.css */` (or the correct filename).\n";
+        $prompt .= "7. When a change requires both PHP and CSS edits, return one \`\`\`php block AND one \`\`\`css block in the same response.\n";
 
         return $prompt;
     }

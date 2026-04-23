@@ -142,6 +142,15 @@ class APA_REST_AI {
             return $this->apply_file_write( $page_slug, (string) $params['file_contents'] );
         }
 
+        // CSS file write: { css_write: { file: 'deka-home.css', contents: '...' } }
+        $css_write = $params['css_write'] ?? null;
+        if ( is_array( $css_write ) ) {
+            return $this->apply_css_write(
+                sanitize_file_name( $css_write['file'] ?? '' ),
+                (string) ( $css_write['contents'] ?? '' )
+            );
+        }
+
         if ( ! is_array( $config ) ) {
             return new WP_REST_Response( [ 'error' => 'Invalid config data.' ], 400 );
         }
@@ -348,5 +357,21 @@ class APA_REST_AI {
         }
 
         return rest_ensure_response( [ 'success' => true, 'post_id' => $post_id ] );
+    }
+
+    private function apply_css_write( $filename, $contents ) {
+        $allowlist = [ 'deka-home.css', 'client-overrides.css', 'client-tokens.css', 'deka-shop.css' ];
+        if ( ! in_array( $filename, $allowlist, true ) ) {
+            return new WP_REST_Response( [ 'error' => 'CSS file not in allowlist: ' . $filename ], 403 );
+        }
+        if ( '' === $contents ) {
+            return new WP_REST_Response( [ 'error' => 'Empty CSS contents.' ], 400 );
+        }
+        $path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $filename;
+        $result = file_put_contents( $path, $contents );
+        if ( false === $result ) {
+            return new WP_REST_Response( [ 'error' => 'Could not write CSS file.' ], 500 );
+        }
+        return rest_ensure_response( [ 'success' => true, 'target' => 'css', 'file' => $filename ] );
     }
 }

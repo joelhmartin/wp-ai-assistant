@@ -188,6 +188,41 @@
                 } );
                 msgEl.appendChild( btn );
             }
+
+            // After extracting any PHP block, also check for a CSS block.
+            var cssMatch = result.reply.match( /```css\n\/\* file: ([a-z0-9_-]+\.css) \*\/\n([\s\S]*?)```/ );
+            if ( cssMatch ) {
+                var cssFile     = cssMatch[1];
+                var cssContents = cssMatch[2].trim();
+                var cssBtn      = document.createElement( 'button' );
+                cssBtn.className    = 'button button-secondary apa-apply-btn';
+                cssBtn.textContent  = 'Apply CSS & Refresh';
+                cssBtn.addEventListener( 'click', function() {
+                    cssBtn.disabled    = true;
+                    cssBtn.textContent = 'Applying…';
+                    fetch( data.restBase + 'ai/apply', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify( { css_write: { file: cssFile, contents: cssContents } } ),
+                    } )
+                    .then( function(r) { return r.json(); } )
+                    .then( function(res) {
+                        if ( res.success ) {
+                            cssBtn.textContent = 'Applied! Refreshing…';
+                            setTimeout( function() { location.reload(); }, 800 );
+                        } else {
+                            cssBtn.textContent = 'Error: ' + ( res.error || 'unknown' );
+                            cssBtn.style.background = '#d63638';
+                            cssBtn.style.color = '#fff';
+                        }
+                    } )
+                    .catch( function() {
+                        cssBtn.textContent = 'Error';
+                        cssBtn.style.background = '#d63638';
+                    } );
+                } );
+                msgEl.appendChild( cssBtn );
+            }
         } )
         .catch( function( err ) {
             thinkingEl.remove();
