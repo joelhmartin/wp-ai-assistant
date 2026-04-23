@@ -24,6 +24,9 @@
 		originalContents: '',
 		currentSlug: '',
 		onSaveCallback: null,
+		currentTab: 'page',
+		currentSectionType: '',
+		currentCssFile: 'deka-home.css',
 	};
 
 	/**
@@ -73,7 +76,7 @@
 		root.innerHTML =
 			'<div class="apa-code-header">' +
 				'<div class="apa-code-title">' +
-					'<strong>Page Code</strong>' +
+					'<strong>Code Editor</strong>' +
 					'<span class="apa-code-path"></span>' +
 				'</div>' +
 				'<div class="apa-code-actions">' +
@@ -82,6 +85,7 @@
 					'<button class="apa-code-btn apa-code-btn--close" id="apa-code-close" title="Close">&times;</button>' +
 				'</div>' +
 			'</div>' +
+			'<div class="apa-code-tabs" id="apa-code-tabs"></div>' +
 			'<div class="apa-code-status" id="apa-code-status" hidden></div>' +
 			'<div class="apa-code-host" id="apa-code-host"></div>';
 
@@ -109,30 +113,73 @@
 		el.className = 'apa-code-status apa-code-status--' + ( kind || 'info' );
 	}
 
-	function open( slug, onSave ) {
-		state.currentSlug = slug;
-		state.onSaveCallback = onSave || null;
+	function renderTabs() {
+		var tabBar = state.container && state.container.querySelector( '#apa-code-tabs' );
+		if ( ! tabBar ) return;
+		tabBar.innerHTML = '';
 
-		buildPanel();
-		state.container.classList.add( 'is-open' );
+		var tabs = [ { id: 'page', label: 'Page' } ];
+		if ( state.currentSectionType ) {
+			tabs.push( { id: 'section', label: state.currentSectionType.replace( /_/g, '-' ) + '.php' } );
+		}
+		tabs.push( { id: 'css', label: state.currentCssFile } );
+
+		tabs.forEach( function( tab ) {
+			var btn = document.createElement( 'button' );
+			btn.className  = 'apa-code-tab' + ( tab.id === state.currentTab ? ' is-active' : '' );
+			btn.dataset.tab = tab.id;
+			btn.textContent = tab.label;
+			btn.addEventListener( 'click', function() {
+				if ( tab.id === state.currentTab ) return;
+				state.currentTab = tab.id;
+				renderTabs();
+				loadTab( tab.id );
+			} );
+			tabBar.appendChild( btn );
+		} );
+	}
+
+	function loadTab( tabId ) {
 		setStatus( 'Loading…', 'info' );
+		var pathEl = state.container && state.container.querySelector( '.apa-code-path' );
 
-		// Show the path immediately, even before contents load.
-		var pathEl = state.container.querySelector( '.apa-code-path' );
-		if ( pathEl ) pathEl.textContent = 'page-content/' + slug + '.php';
+		var fetchPromise;
+		if ( 'page' === tabId ) {
+			if ( pathEl ) pathEl.textContent = 'page-content/' + state.currentSlug + '.php';
+			fetchPromise = fetchFile( state.currentSlug );
+		} else if ( 'section' === tabId ) {
+			if ( pathEl ) pathEl.textContent = 'template-parts/sections/' + state.currentSectionType.replace( /_/g, '-' ) + '.php';
+			fetchPromise = fetchSectionFile( state.currentSectionType );
+		} else {
+			if ( pathEl ) pathEl.textContent = 'assets/css/' + state.currentCssFile;
+			fetchPromise = fetchCssFile( state.currentCssFile );
+		}
 
-		// Load Monaco + the file in parallel.
-		Promise.all( [ loadMonaco(), fetchFile( slug ) ] )
-			.then( function ( results ) {
-				var file = results[ 1 ];
-				var contents = file.contents || '<?php\n// New file. Add your PHP/HTML here.\n';
+		Promise.all( [ loadMonaco(), fetchPromise ] )
+			.then( function( results ) {
+				var file     = results[ 1 ];
+				var contents = file.contents || '';
+				var lang     = ( 'css' === tabId ) ? 'css' : 'php';
 				state.originalContents = contents;
-				mountEditor( contents );
-				setStatus( file.exists ? '' : 'New file — will be created on save.', file.exists ? 'info' : 'warn' );
+				mountEditor( contents, lang );
+				setStatus( file.exists ? '' : 'File does not exist yet.', file.exists ? '' : 'warn' );
 			} )
-			.catch( function ( err ) {
+			.catch( function( err ) {
 				setStatus( 'Error: ' + err.message, 'error' );
 			} );
+	}
+
+	function open( slug, onSave, sectionType ) {
+		state.currentSlug        = slug;
+		state.onSaveCallback     = onSave || null;
+		state.currentSectionType = sectionType || '';
+		// Default to Template tab when a section is known, otherwise Page.
+		state.currentTab = sectionType ? 'section' : 'page';
+
+		buildPanel();
+		renderTabs();
+		state.container.classList.add( 'is-open' );
+		loadTab( state.currentTab );
 	}
 
 	function close() {
@@ -150,13 +197,38 @@
 		} );
 	}
 
-	function mountEditor( contents ) {
+	function fetchSectionFile( type ) {
+		return fetch( data.restBase + 'files/section/' + encodeURIComponent( type ), {
+			headers: { 'X-WP-Nonce': data.nonce },
+		} ).then( function( r ) {
+			return r.json().then( function( body ) {
+				if ( ! r.ok ) throw new Error( body.error || ( 'HTTP ' + r.status ) );
+				return body;
+			} );
+		} );
+	}
+
+	function fetchCssFile( filename ) {
+		return fetch( data.restBase + 'files/css/' + encodeURIComponent( filename ), {
+			headers: { 'X-WP-Nonce': data.nonce },
+		} ).then( function( r ) {
+			return r.json().then( function( body ) {
+				if ( ! r.ok ) throw new Error( body.error || ( 'HTTP ' + r.status ) );
+				return body;
+			} );
+		} );
+	}
+
+	function mountEditor( contents, lang ) {
 		var host = state.container.querySelector( '#apa-code-host' );
 		host.innerHTML = '';
-
+		if ( state.editor ) {
+			state.editor.dispose();
+			state.editor = null;
+		}
 		state.editor = window.monaco.editor.create( host, {
 			value: contents,
-			language: 'php',
+			language: lang || 'php',
 			theme: 'vs-dark',
 			automaticLayout: true,
 			fontSize: 13,
@@ -183,50 +255,49 @@
 		if ( ! state.editor ) return;
 
 		var contents = state.editor.getValue();
-		var saveBtn = state.container.querySelector( '#apa-code-save' );
-		saveBtn.disabled = true;
+		var saveBtn  = state.container.querySelector( '#apa-code-save' );
+		saveBtn.disabled    = true;
 		saveBtn.textContent = 'Saving…';
 		setStatus( 'Writing file…', 'info' );
 
-		fetch( data.restBase + 'files/page/' + encodeURIComponent( state.currentSlug ), {
+		var url, payload;
+		if ( 'page' === state.currentTab ) {
+			url     = data.restBase + 'files/page/' + encodeURIComponent( state.currentSlug );
+			payload = { contents: contents };
+		} else if ( 'section' === state.currentTab ) {
+			url     = data.restBase + 'files/section/' + encodeURIComponent( state.currentSectionType );
+			payload = { contents: contents };
+		} else {
+			url     = data.restBase + 'files/css/' + encodeURIComponent( state.currentCssFile );
+			payload = { contents: contents };
+		}
+
+		fetch( url, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce': data.nonce,
-			},
-			body: JSON.stringify( { contents: contents } ),
+			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.nonce },
+			body: JSON.stringify( payload ),
 		} )
-			.then( function ( r ) {
-				return r.json().then( function ( body ) {
-					return { ok: r.ok, status: r.status, body: body };
-				} );
-			} )
-			.then( function ( res ) {
-				saveBtn.disabled = false;
-				saveBtn.textContent = 'Save';
-
-				if ( ! res.ok || ! res.body.success ) {
-					var msg = ( res.body && res.body.error ) || ( 'HTTP ' + res.status );
-					setStatus( 'Save failed: ' + msg, 'error' );
-					return;
-				}
-
-				state.originalContents = contents;
-				setStatus( 'Saved.', 'ok' );
-
-				if ( typeof state.onSaveCallback === 'function' ) {
-					try {
-						state.onSaveCallback( { slug: state.currentSlug, path: res.body.path } );
-					} catch ( e ) {
-						/* noop */
-					}
-				}
-			} )
-			.catch( function ( err ) {
-				saveBtn.disabled = false;
-				saveBtn.textContent = 'Save';
-				setStatus( 'Save failed: ' + err.message, 'error' );
-			} );
+		.then( function( r ) {
+			return r.json().then( function( body ) { return { ok: r.ok, body: body }; } );
+		} )
+		.then( function( res ) {
+			saveBtn.disabled    = false;
+			saveBtn.textContent = 'Save';
+			if ( ! res.ok || ! res.body.success ) {
+				setStatus( 'Save failed: ' + ( ( res.body && res.body.error ) || ( 'HTTP ' + res.status ) ), 'error' );
+				return;
+			}
+			state.originalContents = contents;
+			setStatus( 'Saved.', 'ok' );
+			if ( 'page' === state.currentTab && typeof state.onSaveCallback === 'function' ) {
+				try { state.onSaveCallback( { slug: state.currentSlug, path: res.body.path } ); } catch ( e ) { /* noop */ }
+			}
+		} )
+		.catch( function( err ) {
+			saveBtn.disabled    = false;
+			saveBtn.textContent = 'Save';
+			setStatus( 'Save failed: ' + err.message, 'error' );
+		} );
 	}
 
 	// Expose API for the main chat widget to drive.

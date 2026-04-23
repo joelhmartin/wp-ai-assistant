@@ -115,6 +115,32 @@
 	overflow: hidden;
 }
 
+.apa-code-tabs {
+	display: flex;
+	gap: 2px;
+	padding: 4px 8px 0;
+	background: #1e1e1e;
+	border-bottom: 1px solid #3c3c3c;
+	flex-shrink: 0;
+}
+.apa-code-tab {
+	padding: 5px 12px;
+	font-size: 12px;
+	background: transparent;
+	color: #cccccc;
+	border: none;
+	border-bottom: 2px solid transparent;
+	cursor: pointer;
+	border-radius: 3px 3px 0 0;
+	white-space: nowrap;
+}
+.apa-code-tab:hover { background: #2a2d2e; }
+.apa-code-tab.is-active {
+	color: #ffffff;
+	border-bottom-color: #0e639c;
+	background: #252526;
+}
+
 /* Smaller viewports: let the panel take the full width. */
 @media ( max-width: 900px ) {
 	.apa-code-panel {
