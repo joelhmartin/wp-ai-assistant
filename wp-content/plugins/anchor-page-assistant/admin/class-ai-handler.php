@@ -54,12 +54,12 @@ class APA_AI_Handler {
      * @param array|null  $post_context Post data for blog/event pages.
      * @return array|WP_Error
      */
-    public function chat( $message, $history = [], $page_slug = null, $config_key = null, $post_context = null ) {
+    public function chat( $message, $history = [], $page_slug = null, $config_key = null, $post_context = null, $selected_section_type = null ) {
         if ( ! $this->is_configured() ) {
             return new WP_Error( 'no_api_key', 'API key not configured. Go to Page Assistant → Settings.' );
         }
 
-        $system = APA_Prompt_Builder::build( $page_slug, $config_key, $post_context );
+        $system = APA_Prompt_Builder::build( $page_slug, $config_key, $post_context, $selected_section_type );
 
         $provider = $this->get_provider();
         if ( 'openai' === $provider ) {

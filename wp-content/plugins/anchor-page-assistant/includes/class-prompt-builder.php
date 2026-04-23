@@ -17,7 +17,7 @@ class APA_Prompt_Builder {
      * @param array|null  $post_context Post data when on a single blog/event post.
      * @return string The system prompt.
      */
-    public static function build( $page_slug = null, $config_key = null, $post_context = null ) {
+    public static function build( $page_slug = null, $config_key = null, $post_context = null, $selected_section_type = null ) {
         $sections = APA_Section_Registry::instance()->get_all();
         $cm       = APA_Config_Manager::instance();
 
@@ -27,7 +27,7 @@ class APA_Prompt_Builder {
         if ( $page_slug && class_exists( 'APA_File_Writer' ) ) {
             $read = APA_File_Writer::read_page( $page_slug );
             if ( is_array( $read ) && ! empty( $read['exists'] ) ) {
-                return self::build_direct_php( $page_slug, $read['contents'], $cm );
+                return self::build_direct_php( $page_slug, $read['contents'], $cm, $selected_section_type );
             }
         }
 
@@ -220,7 +220,7 @@ class APA_Prompt_Builder {
      * @param APA_Config_Manager|null $cm        Config manager (for helper context).
      * @return string
      */
-    private static function build_direct_php( $page_slug, $contents, $cm = null ) {
+    private static function build_direct_php( $page_slug, $contents, $cm = null, $selected_section_type = null ) {
         $prompt  = "You are the Anchor Page Assistant, an AI that edits WordPress pages directly as PHP/HTML files.\n\n";
 
         $prompt .= "## How This Works\n\n";
@@ -281,6 +281,17 @@ class APA_Prompt_Builder {
             }
         }
         $prompt .= "\nYou are NOT limited to these types. Inline raw HTML is fine. Use section templates when they fit, write raw markup when they don't.\n\n";
+
+        // Inject the selected section template so the AI knows its actual markup and CSS classes.
+        if ( $selected_section_type ) {
+            $section_file = str_replace( '_', '-', $selected_section_type ) . '.php';
+            $section_path = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $section_file;
+            if ( file_exists( $section_path ) ) {
+                $prompt .= "## Selected Section Template: template-parts/sections/{$section_file}\n\n";
+                $prompt .= "This is the PHP template that renders the selected section. Its CSS class names are the correct selectors to use when making style changes.\n\n";
+                $prompt .= "```php\n" . file_get_contents( $section_path ) . "\n```\n\n";
+            }
+        }
 
         // Media keys context
         if ( $cm ) {

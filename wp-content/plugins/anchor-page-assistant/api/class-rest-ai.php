@@ -70,7 +70,8 @@ class APA_REST_AI {
         $history      = $params['history'] ?? [];
         $page_slug    = sanitize_text_field( $params['page_slug'] ?? '' );
         $config_key   = sanitize_text_field( $params['config_key'] ?? '' );
-        $post_context = $params['post_context'] ?? null;
+        $post_context          = $params['post_context'] ?? null;
+        $selected_section_type = sanitize_key( $params['selected_section_type'] ?? '' );
 
         if ( empty( $message ) ) {
             return new WP_REST_Response( [ 'error' => 'Message is required.' ], 400 );
@@ -81,7 +82,8 @@ class APA_REST_AI {
             $history,
             $page_slug ?: null,
             $config_key ?: null,
-            $post_context
+            $post_context,
+            $selected_section_type ?: null
         );
 
         if ( is_wp_error( $result ) ) {
