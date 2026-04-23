@@ -21,6 +21,8 @@
     var chatMessages = [];
     var isOpen = false;
     var selectedContext = '';
+    var selectedSectionType  = '';
+    var lastSelectedSectionType = '';
 
     // Load persisted state
     try {
@@ -93,7 +95,7 @@
                 window.APA.codeEditor.open( data.pageSlug, function( info ) {
                     addMsg( 'assistant', 'Saved ' + ( info.slug || data.pageSlug ) + '.php.' );
                     showRefreshButton();
-                } );
+                }, lastSelectedSectionType );
             } );
         }
         document.getElementById( 'apa-fe-input' ).addEventListener( 'keydown', function( e ) {
@@ -131,6 +133,8 @@
         // Prepend selected context if any, then clear it
         var fullMessage = selectedContext ? selectedContext + '\n\n' + message : message;
         selectedContext = '';
+        var sectionTypeForRequest = selectedSectionType;
+        selectedSectionType = '';
 
         var thinkingEl = addMsg( 'assistant', 'Thinking...', false );
 
@@ -143,6 +147,7 @@
                 page_slug: data.pageSlug || '',
                 config_key: '',
                 post_context: data.postContext || null,
+                selected_section_type: sectionTypeForRequest || '',
             } ),
         } )
         .then( function( r ) { return r.json(); } )
@@ -676,6 +681,8 @@
                 ( headingText ? ', heading="' + headingText + '"' : '' ) +
                 ( classes ? ', element=' + classes : '' ) +
                 ( data.pageContentPath ? ', file=' + data.pageContentPath : '' ) + ']';
+            selectedSectionType     = sectionType || '';
+            lastSelectedSectionType = sectionType || '';
 
             // Open chat and focus input (don't paste context into input)
             if ( ! isOpen ) togglePanel();
