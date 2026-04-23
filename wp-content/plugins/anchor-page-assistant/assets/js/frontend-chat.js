@@ -157,10 +157,11 @@
             history.push( { role: 'user', content: message } );
             history.push( { role: 'assistant', content: result.reply } );
 
-            // Strip both JSON and PHP fenced blocks from the rendered reply.
+            // Strip JSON, PHP, and CSS fenced blocks from the rendered reply.
             var displayText = result.reply
                 .replace( /```json[\s\S]*?```/g, '' )
                 .replace( /```php[\s\S]*?```/g, '' )
+                .replace( /```css[\s\S]*?```/g, '' )
                 .trim();
 
             // Direct-PHP mode: AI returned a full file replacement.
@@ -173,6 +174,41 @@
                     applyFileContents( result.file_contents, phpBtn );
                 } );
                 phpMsg.appendChild( phpBtn );
+
+                // Also check for a CSS block in combined PHP+CSS responses.
+                var cssMatchPhp = result.reply.match( /```css\s*\n\s*\/\*\s*file:\s*([a-z0-9_-]+\.css)\s*\*\/\s*\n([\s\S]*?)```/ );
+                if ( cssMatchPhp ) {
+                    var cssFilePhp     = cssMatchPhp[1];
+                    var cssContentsPhp = cssMatchPhp[2].trim();
+                    var cssBtnPhp      = document.createElement( 'button' );
+                    cssBtnPhp.className    = 'button button-secondary apa-apply-btn';
+                    cssBtnPhp.textContent  = 'Apply CSS & Refresh';
+                    cssBtnPhp.addEventListener( 'click', function() {
+                        cssBtnPhp.disabled    = true;
+                        cssBtnPhp.textContent = 'Applying…';
+                        fetch( data.restBase + 'ai/apply', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify( { css_write: { file: cssFilePhp, contents: cssContentsPhp } } ),
+                        } )
+                        .then( function(r) { return r.json(); } )
+                        .then( function(res) {
+                            if ( res.success ) {
+                                cssBtnPhp.textContent = 'Applied! Refreshing…';
+                                setTimeout( function() { location.reload(); }, 800 );
+                            } else {
+                                cssBtnPhp.textContent = 'Error: ' + ( res.error || 'unknown' );
+                                cssBtnPhp.style.background = '#d63638';
+                                cssBtnPhp.style.color = '#fff';
+                            }
+                        } )
+                        .catch( function() {
+                            cssBtnPhp.textContent = 'Error';
+                            cssBtnPhp.style.background = '#d63638';
+                        } );
+                    } );
+                    phpMsg.appendChild( cssBtnPhp );
+                }
                 return;
             }
 
@@ -190,7 +226,7 @@
             }
 
             // After extracting any PHP block, also check for a CSS block.
-            var cssMatch = result.reply.match( /```css\n\/\* file: ([a-z0-9_-]+\.css) \*\/\n([\s\S]*?)```/ );
+            var cssMatch = result.reply.match( /```css\s*\n\s*\/\*\s*file:\s*([a-z0-9_-]+\.css)\s*\*\/\s*\n([\s\S]*?)```/ );
             if ( cssMatch ) {
                 var cssFile     = cssMatch[1];
                 var cssContents = cssMatch[2].trim();
