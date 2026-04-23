@@ -27,6 +27,7 @@
 		currentTab: 'page',
 		currentSectionType: '',
 		currentCssFile: 'deka-home.css',
+		loadSeq: 0,
 	};
 
 	/**
@@ -140,6 +141,7 @@
 	}
 
 	function loadTab( tabId ) {
+		var seq = ++state.loadSeq;
 		setStatus( 'Loading…', 'info' );
 		var pathEl = state.container && state.container.querySelector( '.apa-code-path' );
 
@@ -157,6 +159,7 @@
 
 		Promise.all( [ loadMonaco(), fetchPromise ] )
 			.then( function( results ) {
+				if ( seq !== state.loadSeq ) return; // superseded by a newer loadTab call
 				var file     = results[ 1 ];
 				var contents = file.contents || '';
 				var lang     = ( 'css' === tabId ) ? 'css' : 'php';
@@ -165,6 +168,8 @@
 				setStatus( file.exists ? '' : 'File does not exist yet.', file.exists ? '' : 'warn' );
 			} )
 			.catch( function( err ) {
+				if ( seq !== state.loadSeq ) return;
+				state.originalContents = '';
 				setStatus( 'Error: ' + err.message, 'error' );
 			} );
 	}
@@ -289,8 +294,8 @@
 			}
 			state.originalContents = contents;
 			setStatus( 'Saved.', 'ok' );
-			if ( 'page' === state.currentTab && typeof state.onSaveCallback === 'function' ) {
-				try { state.onSaveCallback( { slug: state.currentSlug, path: res.body.path } ); } catch ( e ) { /* noop */ }
+			if ( typeof state.onSaveCallback === 'function' ) {
+				try { state.onSaveCallback( { slug: state.currentSlug, tab: state.currentTab, path: res.body.path } ); } catch ( e ) { /* noop */ }
 			}
 		} )
 		.catch( function( err ) {
