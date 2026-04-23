@@ -165,12 +165,17 @@ class APA_REST_Files {
 		$path     = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $filename;
 
 		if ( ! file_exists( $path ) ) {
-			return new WP_REST_Response( [ 'exists' => false, 'contents' => '', 'path' => $path ], 200 );
+			return new WP_REST_Response( [ 'exists' => false, 'contents' => '', 'path' => str_replace( ABSPATH, '', $path ) ], 200 );
+		}
+
+		$contents = file_get_contents( $path );
+		if ( false === $contents ) {
+			return new WP_REST_Response( [ 'error' => 'Could not read file.' ], 500 );
 		}
 
 		return rest_ensure_response( [
 			'exists'   => true,
-			'contents' => file_get_contents( $path ),
+			'contents' => $contents,
 			'path'     => str_replace( ABSPATH, '', $path ),
 			'readonly' => false,
 		] );
@@ -192,15 +197,24 @@ class APA_REST_Files {
 		}
 
 		// PHP syntax check before writing.
-		$tmp = tempnam( sys_get_temp_dir(), 'apa_section_' );
-		file_put_contents( $tmp, $contents );
-		exec( 'php -l ' . escapeshellarg( $tmp ) . ' 2>&1', $out, $rc );
-		unlink( $tmp );
-		if ( 0 !== $rc ) {
-			return new WP_REST_Response( [ 'error' => 'PHP syntax error: ' . implode( "\n", $out ), 'code' => 'syntax_error' ], 422 );
+		$tmp     = $path . '.tmp';
+		$written = file_put_contents( $tmp, $contents );
+		if ( false === $written ) {
+			return new WP_REST_Response( [ 'error' => 'Could not write temp file.', 'code' => 'write_failed' ], 500 );
 		}
 
-		file_put_contents( $path, $contents );
+		$lint_error = APA_File_Writer::lint_php( $tmp );
+		if ( is_wp_error( $lint_error ) ) {
+			@unlink( $tmp );
+			return new WP_REST_Response( [ 'error' => $lint_error->get_error_message(), 'code' => 'syntax_error' ], 422 );
+		}
+
+		// Atomic rename.
+		if ( ! rename( $tmp, $path ) ) {
+			@unlink( $tmp );
+			return new WP_REST_Response( [ 'error' => 'Could not finalize write.', 'code' => 'rename_failed' ], 500 );
+		}
+
 		return rest_ensure_response( [ 'success' => true, 'path' => str_replace( ABSPATH, '', $path ) ] );
 	}
 
@@ -217,12 +231,17 @@ class APA_REST_Files {
 		$path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $filename;
 
 		if ( ! file_exists( $path ) ) {
-			return new WP_REST_Response( [ 'exists' => false, 'contents' => '', 'path' => $path ], 200 );
+			return new WP_REST_Response( [ 'exists' => false, 'contents' => '', 'path' => str_replace( ABSPATH, '', $path ) ], 200 );
+		}
+
+		$contents = file_get_contents( $path );
+		if ( false === $contents ) {
+			return new WP_REST_Response( [ 'error' => 'Could not read file.' ], 500 );
 		}
 
 		return rest_ensure_response( [
 			'exists'   => true,
-			'contents' => file_get_contents( $path ),
+			'contents' => $contents,
 			'path'     => str_replace( ABSPATH, '', $path ),
 		] );
 	}

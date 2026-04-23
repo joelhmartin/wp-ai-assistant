@@ -167,7 +167,7 @@ class APA_File_Writer {
 	 * If shell_exec is disabled, returns null (skip the check) rather than
 	 * blocking a legitimate write; the site-level PHP parser is the final say.
 	 */
-	private static function lint_php( $path ) {
+	public static function lint_php( $path ) {
 		if ( ! function_exists( 'shell_exec' ) ) {
 			return null;
 		}
