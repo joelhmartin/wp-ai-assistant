@@ -300,11 +300,10 @@ class APA_Prompt_Builder {
         }
 
         // Inject child-theme CSS so the AI knows actual selectors and can write precise changes.
-        $css_files = [
-            'deka-home.css'        => trailingslashit( get_stylesheet_directory() ) . 'assets/css/deka-home.css',
-            'client-overrides.css' => trailingslashit( get_stylesheet_directory() ) . 'assets/css/client-overrides.css',
-            'client-tokens.css'    => trailingslashit( get_stylesheet_directory() ) . 'assets/css/client-tokens.css',
-        ];
+        $css_files = [];
+        foreach ( APA_REST_Files::get_css_allowlist() as $name ) {
+            $css_files[ $name ] = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $name;
+        }
         $css_found = [];
         foreach ( $css_files as $name => $path ) {
             if ( file_exists( $path ) ) {

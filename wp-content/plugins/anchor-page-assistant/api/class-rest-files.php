@@ -160,7 +160,11 @@ class APA_REST_Files {
 	// ─── Section template ─────────────────────────────────────────────
 
 	public function get_section_file( $request ) {
-		$type     = (string) $request['type'];
+		$type        = (string) $request['type'];
+		$valid_types = array_keys( APA_Section_Registry::instance()->get_all() );
+		if ( ! in_array( $type, $valid_types, true ) ) {
+			return new WP_REST_Response( [ 'error' => 'Unknown section type: ' . $type ], 404 );
+		}
 		$filename = str_replace( '_', '-', $type ) . '.php';
 		$path     = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $filename;
 
@@ -182,7 +186,11 @@ class APA_REST_Files {
 	}
 
 	public function save_section_file( $request ) {
-		$type     = (string) $request['type'];
+		$type        = (string) $request['type'];
+		$valid_types = array_keys( APA_Section_Registry::instance()->get_all() );
+		if ( ! in_array( $type, $valid_types, true ) ) {
+			return new WP_REST_Response( [ 'error' => 'Unknown section type: ' . $type ], 404 );
+		}
 		$filename = str_replace( '_', '-', $type ) . '.php';
 		$path     = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $filename;
 
@@ -220,11 +228,13 @@ class APA_REST_Files {
 
 	// ─── CSS file ─────────────────────────────────────────────────────
 
-	private static $css_allowlist = [ 'deka-home.css', 'client-overrides.css', 'client-tokens.css', 'deka-shop.css' ];
+	public static function get_css_allowlist() {
+		return [ 'deka-home.css', 'client-overrides.css', 'client-tokens.css', 'deka-shop.css' ];
+	}
 
 	public function get_css_file( $request ) {
 		$filename = (string) $request['filename'];
-		if ( ! in_array( $filename, self::$css_allowlist, true ) ) {
+		if ( ! in_array( $filename, self::get_css_allowlist(), true ) ) {
 			return new WP_REST_Response( [ 'error' => 'File not in allowlist.' ], 403 );
 		}
 
@@ -248,7 +258,7 @@ class APA_REST_Files {
 
 	public function save_css_file( $request ) {
 		$filename = (string) $request['filename'];
-		if ( ! in_array( $filename, self::$css_allowlist, true ) ) {
+		if ( ! in_array( $filename, self::get_css_allowlist(), true ) ) {
 			return new WP_REST_Response( [ 'error' => 'File not in allowlist.' ], 403 );
 		}
 
@@ -258,8 +268,11 @@ class APA_REST_Files {
 			return new WP_REST_Response( [ 'error' => 'Missing "contents".' ], 400 );
 		}
 
-		$path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $filename;
-		file_put_contents( $path, $contents );
+		$path    = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $filename;
+		$written = file_put_contents( $path, $contents );
+		if ( false === $written ) {
+			return new WP_REST_Response( [ 'error' => 'Could not write CSS file.' ], 500 );
+		}
 		return rest_ensure_response( [ 'success' => true, 'path' => str_replace( ABSPATH, '', $path ) ] );
 	}
 }

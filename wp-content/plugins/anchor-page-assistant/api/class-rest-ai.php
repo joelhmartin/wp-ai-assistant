@@ -360,8 +360,7 @@ class APA_REST_AI {
     }
 
     private function apply_css_write( $filename, $contents ) {
-        // Keep in sync with APA_REST_Files::$css_allowlist in api/class-rest-files.php.
-        $allowlist = [ 'deka-home.css', 'client-overrides.css', 'client-tokens.css', 'deka-shop.css' ];
+        $allowlist = APA_REST_Files::get_css_allowlist();
         if ( ! in_array( $filename, $allowlist, true ) ) {
             return new WP_REST_Response( [ 'error' => 'CSS file not in allowlist: ' . $filename ], 403 );
         }
