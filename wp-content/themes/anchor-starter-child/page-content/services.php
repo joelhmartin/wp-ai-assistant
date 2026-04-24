@@ -46,12 +46,12 @@ $tabs = array_map( function( $s ) {
     return [
         'id'          => $s['id'],
         'label'       => $s['title'],
-        'subtitle'    => $s['subtitle'],
-        'title'       => $s['description'],
-        'description' => $s['text'],
-        'items'       => $s['items'],
-        'image'       => $s['image'],
-        'url'         => $s['url'],
+        'subtitle'    => $s['subtitle']    ?? '',
+        'title'       => $s['description'] ?? '',
+        'description' => $s['text']        ?? '',
+        'items'       => $s['items']        ?? [],
+        'image'       => anchor_resolve_media( $s['image'] ?? '' ),
+        'url'         => $s['url']          ?? '',
     ];
 }, $services );
 
@@ -66,9 +66,9 @@ anchor_set_template_data( [ 'type' => 'services_tabs', 'props' => [ 'tabs' => $t
 $card_items = array_map( function( $s ) {
     return [
         'title' => $s['title'],
-        'text'  => $s['text'],
-        'url'   => $s['url'],
-        'icon'  => $s['icon'],
+        'text'  => $s['text'] ?? '',
+        'url'   => $s['url']  ?? '',
+        'icon'  => $s['icon'] ?? '',
     ];
 }, $services );
 
