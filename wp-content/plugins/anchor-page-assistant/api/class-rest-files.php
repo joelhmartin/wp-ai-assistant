@@ -99,6 +99,29 @@ class APA_REST_Files {
 				],
 			]
 		);
+
+		// Per-page CSS files.
+		register_rest_route(
+			$this->namespace,
+			'/files/page-css/(?P<slug>[a-z0-9_-]+)',
+			[
+				[
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => [ $this, 'get_page_css_file' ],
+					'permission_callback' => [ $this, 'check_permission' ],
+					'args'                => [ 'slug' => [ 'required' => true, 'sanitize_callback' => 'sanitize_file_name' ] ],
+				],
+				[
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => [ $this, 'save_page_css_file' ],
+					'permission_callback' => [ $this, 'check_permission' ],
+					'args'                => [
+						'slug'     => [ 'required' => true, 'sanitize_callback' => 'sanitize_file_name' ],
+						'contents' => [ 'required' => true, 'type' => 'string' ],
+					],
+				],
+			]
+		);
 	}
 
 	public function check_permission() {
@@ -274,5 +297,51 @@ class APA_REST_Files {
 			return new WP_REST_Response( [ 'error' => 'Could not write CSS file.' ], 500 );
 		}
 		return rest_ensure_response( [ 'success' => true, 'path' => str_replace( ABSPATH, '', $path ) ] );
+	}
+
+	// ─── Per-page CSS files ────────────────────────────────────────────
+
+	public function get_page_css_file( $request ) {
+		$slug = $request->get_param( 'slug' );
+		$path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/pages/' . $slug . '.css';
+		$rel  = 'assets/css/pages/' . $slug . '.css';
+
+		if ( ! file_exists( $path ) ) {
+			return rest_ensure_response( [
+				'exists'   => false,
+				'contents' => '',
+				'path'     => $rel,
+			] );
+		}
+
+		$contents = file_get_contents( $path );
+		if ( false === $contents ) {
+			return new WP_Error( 'read_error', 'Could not read ' . $rel, [ 'status' => 500 ] );
+		}
+
+		return rest_ensure_response( [
+			'exists'   => true,
+			'contents' => $contents,
+			'path'     => $rel,
+		] );
+	}
+
+	public function save_page_css_file( $request ) {
+		$slug     = $request->get_param( 'slug' );
+		$contents = $request->get_param( 'contents' );
+		$dir      = trailingslashit( get_stylesheet_directory() ) . 'assets/css/pages';
+		$path     = $dir . '/' . $slug . '.css';
+		$rel      = 'assets/css/pages/' . $slug . '.css';
+
+		if ( ! is_dir( $dir ) ) {
+			wp_mkdir_p( $dir );
+		}
+
+		$result = file_put_contents( $path, $contents );
+		if ( false === $result ) {
+			return new WP_Error( 'write_error', 'Could not write ' . $rel, [ 'status' => 500 ] );
+		}
+
+		return rest_ensure_response( [ 'success' => true, 'path' => $rel ] );
 	}
 }
