@@ -97,6 +97,32 @@ endif;
 add_action( 'wp_enqueue_scripts', 'anchor_starter_child_enqueue_styles' );
 
 /**
+ * Auto-enqueue a per-page CSS file from assets/css/pages/{slug}.css
+ * when that file exists in the child theme. Allows scoped styles for
+ * individual pages without touching global CSS.
+ */
+if ( ! function_exists( 'anchor_child_enqueue_page_css' ) ) :
+	function anchor_child_enqueue_page_css() {
+		$obj = get_queried_object();
+		if ( ! $obj || ! isset( $obj->post_name ) || '' === $obj->post_name ) {
+			return;
+		}
+		$slug = sanitize_file_name( $obj->post_name );
+		$path = get_stylesheet_directory() . '/assets/css/pages/' . $slug . '.css';
+		if ( ! file_exists( $path ) ) {
+			return;
+		}
+		wp_enqueue_style(
+			'anchor-page-' . $slug,
+			get_stylesheet_directory_uri() . '/assets/css/pages/' . $slug . '.css',
+			array( 'anchor-child-overrides' ),
+			filemtime( $path )
+		);
+	}
+endif;
+add_action( 'wp_enqueue_scripts', 'anchor_child_enqueue_page_css' );
+
+/**
  * Body classes for the bespoke editorial chrome:
  *   - `deka-home`  on the front page
  *   - `deka-shop`  on the laser_product archive and single pages
