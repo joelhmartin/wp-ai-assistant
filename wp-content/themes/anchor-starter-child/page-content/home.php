@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Resolve product image URLs once.
 $img_us20d      = anchor_resolve_media( 'product_us20d' );
-$img_smartxide  = 'https://test-theme-deka.local/wp-content/uploads/2026/04/DEKA-SX2.webp';
+$img_smartxide  = anchor_resolve_media( 'product_smartxide' );
 $img_smartperio = anchor_resolve_media( 'product_smartperio' );
 
 // Voices data for the JS testimonial slider.
@@ -483,7 +483,7 @@ $voices_count = count( $safe_voices );
         </div>
     </div>
 
-    <script>window.__DEKA_VOICES = <?php echo wp_json_encode( $safe_voices ); ?>;</script>
+    <script>window.__DEKA_VOICES = <?php echo wp_json_encode( $safe_voices, JSON_HEX_TAG ); ?>;</script>
 </section>
 
 <!-- 10 — Trust -->
