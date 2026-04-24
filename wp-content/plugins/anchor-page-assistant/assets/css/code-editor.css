@@ -18,7 +18,7 @@
 	transition: transform 220ms ease;
 	display: flex;
 	flex-direction: column;
-	z-index: 99998;
+	z-index: 100001;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
