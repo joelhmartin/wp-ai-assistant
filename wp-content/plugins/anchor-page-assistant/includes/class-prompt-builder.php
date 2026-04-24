@@ -27,7 +27,7 @@ class APA_Prompt_Builder {
         if ( $page_slug && class_exists( 'APA_File_Writer' ) ) {
             $read = APA_File_Writer::read_page( $page_slug );
             if ( is_array( $read ) && ! empty( $read['exists'] ) ) {
-                return self::build_direct_php( $page_slug, $read['contents'], $cm, $selected_section_type );
+                return self::build_direct_php( $page_slug, $read['contents'], $cm );
             }
         }
 
@@ -220,25 +220,50 @@ class APA_Prompt_Builder {
      * @param APA_Config_Manager|null $cm        Config manager (for helper context).
      * @return string
      */
-    private static function build_direct_php( $page_slug, $contents, $cm = null, $selected_section_type = null ) {
+    private static function build_direct_php( $page_slug, $contents, $cm = null ) {
         $prompt  = "You are the Anchor Page Assistant, an AI that edits WordPress pages directly as PHP/HTML files.\n\n";
 
         $prompt .= "## How This Works\n\n";
         $prompt .= "This page is a direct-PHP file at `page-content/{$page_slug}.php`. ";
-        $prompt .= "You edit the raw PHP/HTML — not a config array. ";
-        $prompt .= "The file renders inside header.php + footer.php (so do NOT include `get_header()` or `get_footer()`).\n\n";
-        $prompt .= "When the user asks for changes, return the COMPLETE updated file contents inside a single ```php code fence. ";
-        $prompt .= "The system parses the fenced block and writes it to disk atomically after a `php -l` syntax check. ";
-        $prompt .= "If the user asks a question (not a change), answer normally without a code fence.\n\n";
+        $prompt .= "The file is pure PHP/HTML — write HTML directly, use `<?php ?>` tags for dynamic content. ";
+        $prompt .= "The file renders inside header.php + footer.php (never include `get_header()` or `get_footer()`). ";
+        $prompt .= "You can add any HTML element, CSS class, inline style, shortcode, `<video>`, `<iframe>`, or script block directly.\n\n";
 
-        $prompt .= "## Helpers You Can Call\n\n";
-        $prompt .= "- `anchor_get_site_config()` — business info (name, phone, email, address, social, logo).\n";
-        $prompt .= "- `anchor_get_data( 'services' | 'team' | 'products' )` — shared entity arrays from `data.php`.\n";
-        $prompt .= "- `anchor_resolve_media( 'key' )` — resolve a named media key to a URL (see Media Keys below).\n";
-        $prompt .= "- `anchor_get_nav( 'primary' | 'footer' )` (if present) — nav menus.\n";
+        $prompt .= "When the user asks for changes, return the COMPLETE updated file contents inside a single ```php code fence. ";
+        $prompt .= "The system parses the fenced block and writes it to disk atomically after a `php -l` syntax check.\n\n";
+
+        $prompt .= "## Helpers Available in PHP Templates\n\n";
+        $prompt .= "- `do_shortcode( '[shortcode_tag]' )` — run any Anchor Tools (or WP core) shortcode.\n";
+        $prompt .= "- `anchor_resolve_media( 'key' )` — resolve a named media key to a full URL.\n";
+        $prompt .= "- `anchor_get_site_config()` — array of business info (name, phone, email, address, logo).\n";
+        $prompt .= "- `anchor_get_data( 'services' | 'team' | 'products' )` — shared entity arrays from `config/data.php`.\n";
         $prompt .= "- `get_template_part( 'template-parts/components/{name}', null, \$args )` — reusable components.\n";
         $prompt .= "- `get_template_part( 'template-parts/partials/{name}' )` — reusable page sections (cta-band, testimonials).\n";
         $prompt .= "- Standard WordPress: `esc_html()`, `esc_attr()`, `esc_url()`, `wp_kses_post()`, `the_permalink()`, etc.\n\n";
+
+        $prompt .= "## Anchor Tools Shortcodes\n\n";
+        $prompt .= "These shortcodes are registered by the Anchor Tools plugin and are ready to use anywhere in the page file.\n";
+        $prompt .= "**Usage:** `<?php echo do_shortcode( '[shortcode_tag]' ); ?>`\n\n";
+        $prompt .= "### Business Info (managed in Settings > Anchor Tools)\n";
+        $prompt .= "- `[business_name]` — business name\n";
+        $prompt .= "- `[phone]` — phone number\n";
+        $prompt .= "- `[phone_href]` — phone stripped to digits only (use in `href=\"tel:[phone_href]\"`)\n";
+        $prompt .= "- `[address]` — full address (may contain HTML line breaks)\n";
+        $prompt .= "- `[email]` — contact email\n";
+        $prompt .= "- `[business_hours]` — business hours\n";
+        $prompt .= "- `[current_year]` — current year\n";
+        $prompt .= "- `[site_title]` — WordPress site title\n";
+        $prompt .= "- `[site_image_url]` — primary logo URL\n";
+        $prompt .= "- `[site_image_horizontal]` — horizontal logo URL\n";
+        $prompt .= "- `[site_image_white]` — white/inverted logo URL\n";
+        $prompt .= "- `[page_title]` — current page title\n\n";
+        $prompt .= "### Components (CPT-based — create instances in WP Admin)\n";
+        $prompt .= "- `[anchor_gallery id=\"N\"]` / `[anchor_video_slider id=\"N\"]` — video gallery or slider (create in Anchor Video Slider CPT)\n";
+        $prompt .= "- `[anchor_reviews id=\"N\"]` — reviews display (create in Anchor Reviews CPT)\n";
+        $prompt .= "- `[anchor_post_grid post_type=\"post\" fields=\"image,title,excerpt\"]` — post grid; supports `post_type`, `fields`, `limit`, `category`, `orderby`\n";
+        $prompt .= "- `[anchor_search target=\"#selector\"]` — live search input that filters an `[anchor_post_grid]`\n";
+        $prompt .= "- `[anchor_popup id=\"N\"]` — universal popup trigger (create in Anchor Universal Popups CPT)\n\n";
+        $prompt .= "Custom shortcodes registered in Settings > Anchor Tools > Shortcodes tab are also available.\n\n";
 
         $prompt .= "## Available Components (template-parts/components/)\n\n";
         $components_dir = trailingslashit( get_template_directory() ) . 'template-parts/components';
@@ -260,52 +285,26 @@ class APA_Prompt_Builder {
         }
         $prompt .= "\n";
 
-        // Section templates are still available.
-        $prompt .= "## Available Section Templates (template-parts/sections/)\n\n";
-        $prompt .= "Each of these wraps its own `<section class=\"anchor-section\">`. Call via the section renderer:\n";
-        $prompt .= "```php\n";
-        $prompt .= "anchor_render_section([\n";
-        $prompt .= "    'type' => 'hero',\n";
-        $prompt .= "    'variant' => 'full',\n";
-        $prompt .= "    'props' => [ 'heading' => '...', 'image' => 'hero_key' ],\n";
-        $prompt .= "]);\n";
-        $prompt .= "```\n";
-        $sections_dir = trailingslashit( get_template_directory() ) . 'template-parts/sections';
-        if ( is_dir( $sections_dir ) ) {
-            $files = glob( $sections_dir . '/*.php' );
-            if ( $files ) {
-                foreach ( $files as $f ) {
-                    $slug = basename( $f, '.php' );
-                    $prompt .= "  - type: `" . str_replace( '-', '_', $slug ) . "`\n";
-                }
-            }
-        }
-        $prompt .= "\nYou are NOT limited to these types. Inline raw HTML is fine. Use section templates when they fit, write raw markup when they don't.\n\n";
+        $prompt .= "## Available Section Templates (legacy reference)\n\n";
+        $prompt .= "Framework sections can still be called via `anchor_render_section(['type' => 'hero', 'props' => [...]])` ";
+        $prompt .= "but the preferred approach is to write HTML directly. Only use the section renderer for framework sections ";
+        $prompt .= "that would be very long to inline (hero variants, services-tabs). Deka editorial sections should always be inline HTML.\n\n";
 
-        // Inject the selected section template so the AI knows its actual markup and CSS classes.
-        if ( $selected_section_type ) {
-            $valid_types = array_keys( APA_Section_Registry::instance()->get_all() );
-            if ( in_array( $selected_section_type, $valid_types, true ) ) {
-                $section_file = str_replace( '_', '-', $selected_section_type ) . '.php';
-                $section_path = trailingslashit( get_template_directory() ) . 'template-parts/sections/' . $section_file;
-                if ( file_exists( $section_path ) ) {
-                    $tpl = file_get_contents( $section_path );
-                    if ( false !== $tpl ) {
-                        $prompt .= "## Selected Section Template: template-parts/sections/{$section_file}\n\n";
-                        $prompt .= "This is the PHP template that renders the selected section. Its CSS class names are the correct selectors to use when making style changes.\n\n";
-                        $prompt .= "```php\n" . $tpl . "\n```\n\n";
-                    }
-                }
-            }
-        }
-
-        // Inject child-theme CSS so the AI knows actual selectors and can write precise changes.
-        $css_files = [];
-        foreach ( APA_REST_Files::get_css_allowlist() as $name ) {
-            $css_files[ $name ] = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $name;
-        }
+        // Collect CSS files: per-page CSS first, then theme CSS.
         $css_found = [];
-        foreach ( $css_files as $name => $path ) {
+
+        // Per-page CSS (highest priority — most relevant for this page).
+        $page_css_path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/pages/' . $page_slug . '.css';
+        if ( file_exists( $page_css_path ) ) {
+            $page_css = file_get_contents( $page_css_path );
+            if ( false !== $page_css ) {
+                $css_found[ $page_slug . '.css (per-page)' ] = $page_css;
+            }
+        }
+
+        // Theme CSS files.
+        foreach ( APA_REST_Files::get_css_allowlist() as $name ) {
+            $path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $name;
             if ( file_exists( $path ) ) {
                 $css = file_get_contents( $path );
                 if ( false !== $css ) {
@@ -313,9 +312,14 @@ class APA_Prompt_Builder {
                 }
             }
         }
+
         if ( $css_found ) {
-            $prompt .= "## Child-Theme CSS Files\n\n";
-            $prompt .= "These are the editable CSS files. When asked to make a style change, return the COMPLETE updated file in a single \`\`\`css fenced block. The first line inside the fence must be a comment identifying the file: `/* file: deka-home.css */` (or whichever filename). The system will detect this and write it to disk.\n\n";
+            $prompt .= "## CSS Files Available for Editing\n\n";
+            $prompt .= "When making a style change, return the COMPLETE updated file in a \`\`\`css fenced block. ";
+            $prompt .= "The first line inside the fence must be a comment: `/* file: {$page_slug}.css (per-page) */` ";
+            $prompt .= "(or whichever filename). The system detects this and writes it to disk.\n\n";
+            $prompt .= "**Per-page CSS** (`assets/css/pages/{$page_slug}.css`) is the preferred target for styles ";
+            $prompt .= "that apply only to this page. **Theme CSS** files affect all pages — only edit them for global changes.\n\n";
             foreach ( $css_found as $name => $css ) {
                 $prompt .= "### {$name}\n\n\`\`\`css\n{$css}\n\`\`\`\n\n";
             }
@@ -365,12 +369,11 @@ class APA_Prompt_Builder {
 
         $prompt .= "## Response Format\n\n";
         $prompt .= "1. A short explanation of the change.\n";
-        $prompt .= "2. The COMPLETE updated file in a single ```php fenced block. Always include the opening `<?php` tag.\n";
-        $prompt .= "3. Never include `get_header()` or `get_footer()` — the page template wraps those.\n";
-        $prompt .= "4. Never include the triple backticks inside the PHP itself.\n";
-        $prompt .= "5. If the user asks a question and you are not changing anything, skip the code block.\n";
-        $prompt .= "6. For CSS-only changes: return the COMPLETE updated CSS file in a \`\`\`css fenced block. First line inside the fence must be `/* file: deka-home.css */` (or the correct filename).\n";
-        $prompt .= "7. When a change requires both PHP and CSS edits, return one \`\`\`php block AND one \`\`\`css block in the same response.\n";
+        $prompt .= "2. For PHP changes: the COMPLETE updated page file in a single \`\`\`php fenced block. Always include the opening `<?php` tag.\n";
+        $prompt .= "3. For CSS-only changes: the COMPLETE updated CSS file in a \`\`\`css fenced block. First line inside must be `/* file: {$page_slug}.css (per-page) */` (or the correct filename).\n";
+        $prompt .= "4. For changes requiring both PHP and CSS: return one \`\`\`php block AND one \`\`\`css block.\n";
+        $prompt .= "5. Never include `get_header()` or `get_footer()` in the PHP output.\n";
+        $prompt .= "6. If the user asks a question without requesting a change, answer normally without any code block.\n";
 
         return $prompt;
     }
