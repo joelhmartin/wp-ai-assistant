@@ -93,7 +93,7 @@
                     return;
                 }
                 window.APA.codeEditor.open( data.pageSlug, function( info ) {
-                    addMsg( 'assistant', 'Saved ' + ( info.slug || data.pageSlug ) + '.php.' );
+                    addMsg( 'assistant', 'Saved ' + ( info.path || data.pageSlug ) + '.' );
                     showRefreshButton();
                 } );
             } );
