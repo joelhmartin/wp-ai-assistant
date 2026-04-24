@@ -335,8 +335,8 @@ class APA_REST_Files {
 			return new WP_REST_Response( [ 'error' => 'Missing "contents".' ], 400 );
 		}
 
-		if ( ! is_dir( $dir ) ) {
-			wp_mkdir_p( $dir );
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return new WP_REST_Response( [ 'error' => 'Could not create directory.' ], 500 );
 		}
 
 		$result = file_put_contents( $path, $contents );
