@@ -25,7 +25,6 @@
 		currentSlug: '',
 		onSaveCallback: null,
 		currentTab: 'page',
-		currentSectionType: '',
 		currentCssFile: 'deka-home.css',
 		loadSeq: 0,
 	};
@@ -119,11 +118,11 @@
 		if ( ! tabBar ) return;
 		tabBar.innerHTML = '';
 
-		var tabs = [ { id: 'page', label: 'Page' } ];
-		if ( state.currentSectionType ) {
-			tabs.push( { id: 'section', label: state.currentSectionType.replace( /_/g, '-' ) + '.php' } );
-		}
-		tabs.push( { id: 'css', label: state.currentCssFile } );
+		var tabs = [
+			{ id: 'page',     label: 'Page' },
+			{ id: 'page-css', label: state.currentSlug + '.css' },
+			{ id: 'css',      label: state.currentCssFile },
+		];
 
 		tabs.forEach( function( tab ) {
 			var btn = document.createElement( 'button' );
@@ -149,9 +148,9 @@
 		if ( 'page' === tabId ) {
 			if ( pathEl ) pathEl.textContent = 'page-content/' + state.currentSlug + '.php';
 			fetchPromise = fetchFile( state.currentSlug );
-		} else if ( 'section' === tabId ) {
-			if ( pathEl ) pathEl.textContent = 'template-parts/sections/' + state.currentSectionType.replace( /_/g, '-' ) + '.php';
-			fetchPromise = fetchSectionFile( state.currentSectionType );
+		} else if ( 'page-css' === tabId ) {
+			if ( pathEl ) pathEl.textContent = 'assets/css/pages/' + state.currentSlug + '.css';
+			fetchPromise = fetchPageCssFile( state.currentSlug );
 		} else {
 			if ( pathEl ) pathEl.textContent = 'assets/css/' + state.currentCssFile;
 			fetchPromise = fetchCssFile( state.currentCssFile );
@@ -159,13 +158,13 @@
 
 		Promise.all( [ loadMonaco(), fetchPromise ] )
 			.then( function( results ) {
-				if ( seq !== state.loadSeq ) return; // superseded by a newer loadTab call
+				if ( seq !== state.loadSeq ) return;
 				var file     = results[ 1 ];
 				var contents = file.contents || '';
-				var lang     = ( 'css' === tabId ) ? 'css' : 'php';
+				var lang     = ( 'page' === tabId ) ? 'php' : 'css';
 				state.originalContents = contents;
 				mountEditor( contents, lang );
-				setStatus( file.exists ? '' : 'File does not exist yet.', file.exists ? '' : 'warn' );
+				setStatus( file.exists ? '' : 'File does not exist yet — save to create it.', file.exists ? '' : 'warn' );
 			} )
 			.catch( function( err ) {
 				if ( seq !== state.loadSeq ) return;
@@ -174,12 +173,10 @@
 			} );
 	}
 
-	function open( slug, onSave, sectionType ) {
+	function open( slug, onSave ) {
 		state.currentSlug        = slug;
 		state.onSaveCallback     = onSave || null;
-		state.currentSectionType = sectionType || '';
-		// Default to Template tab when a section is known, otherwise Page.
-		state.currentTab = sectionType ? 'section' : 'page';
+		state.currentTab = 'page';
 
 		buildPanel();
 		renderTabs();
@@ -202,8 +199,8 @@
 		} );
 	}
 
-	function fetchSectionFile( type ) {
-		return fetch( data.restBase + 'files/section/' + encodeURIComponent( type ), {
+	function fetchCssFile( filename ) {
+		return fetch( data.restBase + 'files/css/' + encodeURIComponent( filename ), {
 			headers: { 'X-WP-Nonce': data.nonce },
 		} ).then( function( r ) {
 			return r.json().then( function( body ) {
@@ -213,8 +210,8 @@
 		} );
 	}
 
-	function fetchCssFile( filename ) {
-		return fetch( data.restBase + 'files/css/' + encodeURIComponent( filename ), {
+	function fetchPageCssFile( slug ) {
+		return fetch( data.restBase + 'files/page-css/' + encodeURIComponent( slug ), {
 			headers: { 'X-WP-Nonce': data.nonce },
 		} ).then( function( r ) {
 			return r.json().then( function( body ) {
@@ -269,8 +266,8 @@
 		if ( 'page' === state.currentTab ) {
 			url     = data.restBase + 'files/page/' + encodeURIComponent( state.currentSlug );
 			payload = { contents: contents };
-		} else if ( 'section' === state.currentTab ) {
-			url     = data.restBase + 'files/section/' + encodeURIComponent( state.currentSectionType );
+		} else if ( 'page-css' === state.currentTab ) {
+			url     = data.restBase + 'files/page-css/' + encodeURIComponent( state.currentSlug );
 			payload = { contents: contents };
 		} else {
 			url     = data.restBase + 'files/css/' + encodeURIComponent( state.currentCssFile );
@@ -289,7 +286,7 @@
 			saveBtn.disabled    = false;
 			saveBtn.textContent = 'Save';
 			if ( ! res.ok || ! res.body.success ) {
-				setStatus( 'Save failed: ' + ( ( res.body && res.body.error ) || ( 'HTTP ' + res.status ) ), 'error' );
+				setStatus( 'Save failed: ' + ( ( res.body && res.body.error ) || 'HTTP error' ), 'error' );
 				return;
 			}
 			state.originalContents = contents;

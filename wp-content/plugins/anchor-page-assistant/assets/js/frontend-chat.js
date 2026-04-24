@@ -95,7 +95,7 @@
                 window.APA.codeEditor.open( data.pageSlug, function( info ) {
                     addMsg( 'assistant', 'Saved ' + ( info.slug || data.pageSlug ) + '.php.' );
                     showRefreshButton();
-                }, lastSelectedSectionType );
+                } );
             } );
         }
         document.getElementById( 'apa-fe-input' ).addEventListener( 'keydown', function( e ) {
