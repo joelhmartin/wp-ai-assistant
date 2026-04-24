@@ -298,7 +298,7 @@ class APA_Prompt_Builder {
         if ( file_exists( $page_css_path ) ) {
             $page_css = file_get_contents( $page_css_path );
             if ( false !== $page_css ) {
-                $css_found[ $page_slug . '.css (per-page)' ] = $page_css;
+                $css_found[ $page_slug . '.css' ] = $page_css;
             }
         }
 
@@ -316,8 +316,8 @@ class APA_Prompt_Builder {
         if ( $css_found ) {
             $prompt .= "## CSS Files Available for Editing\n\n";
             $prompt .= "When making a style change, return the COMPLETE updated file in a \`\`\`css fenced block. ";
-            $prompt .= "The first line inside the fence must be a comment: `/* file: {$page_slug}.css (per-page) */` ";
-            $prompt .= "(or whichever filename). The system detects this and writes it to disk.\n\n";
+            $prompt .= "The first line inside the fence must be a comment identifying the file: `/* file: {$page_slug}.css */` ";
+            $prompt .= "(or whichever filename, e.g. `deka-home.css`). The system detects this and writes it to disk.\n\n";
             $prompt .= "**Per-page CSS** (`assets/css/pages/{$page_slug}.css`) is the preferred target for styles ";
             $prompt .= "that apply only to this page. **Theme CSS** files affect all pages — only edit them for global changes.\n\n";
             foreach ( $css_found as $name => $css ) {
@@ -370,7 +370,7 @@ class APA_Prompt_Builder {
         $prompt .= "## Response Format\n\n";
         $prompt .= "1. A short explanation of the change.\n";
         $prompt .= "2. For PHP changes: the COMPLETE updated page file in a single \`\`\`php fenced block. Always include the opening `<?php` tag.\n";
-        $prompt .= "3. For CSS-only changes: the COMPLETE updated CSS file in a \`\`\`css fenced block. First line inside must be `/* file: {$page_slug}.css (per-page) */` (or the correct filename).\n";
+        $prompt .= "3. For CSS-only changes: the COMPLETE updated CSS file in a \`\`\`css fenced block. First line inside must be `/* file: {$page_slug}.css */` (or the correct theme filename).\n";
         $prompt .= "4. For changes requiring both PHP and CSS: return one \`\`\`php block AND one \`\`\`css block.\n";
         $prompt .= "5. Never include `get_header()` or `get_footer()` in the PHP output.\n";
         $prompt .= "6. If the user asks a question without requesting a change, answer normally without any code block.\n";

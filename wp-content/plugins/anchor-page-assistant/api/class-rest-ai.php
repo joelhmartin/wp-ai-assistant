@@ -360,18 +360,39 @@ class APA_REST_AI {
     }
 
     private function apply_css_write( $filename, $contents ) {
-        $allowlist = APA_REST_Files::get_css_allowlist();
-        if ( ! in_array( $filename, $allowlist, true ) ) {
-            return new WP_REST_Response( [ 'error' => 'CSS file not in allowlist: ' . $filename ], 403 );
-        }
         if ( '' === $contents ) {
             return new WP_REST_Response( [ 'error' => 'Empty CSS contents.' ], 400 );
         }
-        $path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $filename;
+
+        // Global theme CSS files (fixed allowlist).
+        $allowlist = APA_REST_Files::get_css_allowlist();
+        if ( in_array( $filename, $allowlist, true ) ) {
+            $path   = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $filename;
+            $result = file_put_contents( $path, $contents );
+            if ( false === $result ) {
+                return new WP_REST_Response( [ 'error' => 'Could not write CSS file.' ], 500 );
+            }
+            return rest_ensure_response( [ 'success' => true, 'target' => 'css', 'file' => $filename ] );
+        }
+
+        // Per-page CSS: filename = {slug}.css where slug is a valid page slug.
+        $slug = preg_replace( '/\.css$/', '', $filename );
+        $slug = sanitize_file_name( $slug );
+        if ( '' === $slug || ! preg_match( '/^[a-z0-9_-]+$/', $slug ) ) {
+            return new WP_REST_Response( [ 'error' => 'CSS file not in allowlist: ' . $filename ], 403 );
+        }
+
+        $dir  = trailingslashit( get_stylesheet_directory() ) . 'assets/css/pages';
+        $path = $dir . '/' . $slug . '.css';
+        if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+            return new WP_REST_Response( [ 'error' => 'Could not create directory.' ], 500 );
+        }
+
         $result = file_put_contents( $path, $contents );
         if ( false === $result ) {
-            return new WP_REST_Response( [ 'error' => 'Could not write CSS file.' ], 500 );
+            return new WP_REST_Response( [ 'error' => 'Could not write per-page CSS file.' ], 500 );
         }
-        return rest_ensure_response( [ 'success' => true, 'target' => 'css', 'file' => $filename ] );
+
+        return rest_ensure_response( [ 'success' => true, 'target' => 'page-css', 'file' => $slug . '.css' ] );
     }
 }
