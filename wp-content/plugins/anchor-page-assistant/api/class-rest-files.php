@@ -304,25 +304,24 @@ class APA_REST_Files {
 	public function get_page_css_file( $request ) {
 		$slug = $request->get_param( 'slug' );
 		$path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/pages/' . $slug . '.css';
-		$rel  = 'assets/css/pages/' . $slug . '.css';
 
 		if ( ! file_exists( $path ) ) {
 			return rest_ensure_response( [
 				'exists'   => false,
 				'contents' => '',
-				'path'     => $rel,
+				'path'     => str_replace( ABSPATH, '', $path ),
 			] );
 		}
 
 		$contents = file_get_contents( $path );
 		if ( false === $contents ) {
-			return new WP_Error( 'read_error', 'Could not read ' . $rel, [ 'status' => 500 ] );
+			return new WP_REST_Response( [ 'error' => 'Could not read file.' ], 500 );
 		}
 
 		return rest_ensure_response( [
 			'exists'   => true,
 			'contents' => $contents,
-			'path'     => $rel,
+			'path'     => str_replace( ABSPATH, '', $path ),
 		] );
 	}
 
@@ -331,7 +330,10 @@ class APA_REST_Files {
 		$contents = $request->get_param( 'contents' );
 		$dir      = trailingslashit( get_stylesheet_directory() ) . 'assets/css/pages';
 		$path     = $dir . '/' . $slug . '.css';
-		$rel      = 'assets/css/pages/' . $slug . '.css';
+
+		if ( null === $contents ) {
+			return new WP_REST_Response( [ 'error' => 'Missing "contents".' ], 400 );
+		}
 
 		if ( ! is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
@@ -339,9 +341,9 @@ class APA_REST_Files {
 
 		$result = file_put_contents( $path, $contents );
 		if ( false === $result ) {
-			return new WP_Error( 'write_error', 'Could not write ' . $rel, [ 'status' => 500 ] );
+			return new WP_REST_Response( [ 'error' => 'Could not write CSS file.' ], 500 );
 		}
 
-		return rest_ensure_response( [ 'success' => true, 'path' => $rel ] );
+		return rest_ensure_response( [ 'success' => true, 'path' => str_replace( ABSPATH, '', $path ) ] );
 	}
 }
