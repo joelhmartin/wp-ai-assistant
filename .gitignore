@@ -11,14 +11,17 @@
 !/wp-content/themes/
 !/wp-content/plugins/
 
-# Inside themes/: only the two we own
+# Inside themes/: only the child theme we own.
+# anchor-framework lives in its own repo (joelhmartin/anchor-framework)
+# and is installed/updated on each site via the WP updater UI.
 /wp-content/themes/*
-!/wp-content/themes/anchor-framework/
 !/wp-content/themes/anchor-starter-child/
 
-# Inside plugins/: only the one we own
+# Inside plugins/: nothing tracked here.
+# anchor-page-assistant lives in its own repo
+# (joelhmartin/anchor-page-assistant) and is installed/updated on each
+# site via the WP updater UI.
 /wp-content/plugins/*
-!/wp-content/plugins/anchor-page-assistant/
 
 # Common build / local-only junk inside our tracked dirs
 **/node_modules/
