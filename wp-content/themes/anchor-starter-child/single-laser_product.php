@@ -239,12 +239,13 @@ if ( function_exists( 'anchor_get_data' ) ) {
 if ( function_exists( 'anchor_render_sections' ) ) {
 	anchor_render_sections( [
 		[
-			'type'  => 'deka_final',
-			'props' => [
+			'type'    => 'cta_band',
+			'variant' => 'dark',
+			'props'   => [
 				'eyebrow'       => '— Ordering',
 				'heading'       => $is_system
-					? "Ready to see the " . $product['name'] . " in your\n**operatory**?"
-					: "Questions on fit, bundles, or\n**installation**?",
+					? 'Ready to see the ' . $product['name'] . ' in your operatory?'
+					: 'Questions on fit, bundles, or installation?',
 				'text'          => $is_system
 					? "Our clinical specialist will schedule a private, unhurried demonstration — quiet, on your terms, and entirely without a showroom."
 					: "Call us directly. Orders placed before 3 pm ET ship same-day; our specialists know which kit fits which system without a catalogue lookup.",
