@@ -22,8 +22,12 @@ A reusable WordPress parent theme (`anchor-framework`) plus a per-client child t
 
 The framework supports two ways to render a page. Both run through `front-page.php` / `page.php`, which call `anchor_load_page_content($slug)` to look for a `page-content/{slug}.php` file in the **child theme** first.
 
-1. **Direct-PHP / data-inline (active paradigm).** If `page-content/{slug}.php` exists, the framework includes it directly and stops. The file outputs raw HTML for the page, marking each block with `data-section-type="..."` for CSS scoping. Used for any page where the layout is bespoke or doesn't fit the generic section catalog. **All currently migrated pages on the Deka site (home, about, services, single-service, contact) use this.** None of them call `anchor_render_section()`.
-2. **Config-driven (legacy / fallback).** If no `page-content/` override exists, the framework falls back to `anchor_get_page_config($slug)` → `anchor_render_sections($config['sections'])` → for each section: validate → resolve media → `get_template_part()` → section template reads data via `anchor_get_template_data()`. This is still wired up and supported, but no Deka pages currently use it.
+1. **Direct-PHP (active paradigm).** If `page-content/{slug}.php` exists, the framework includes it directly and stops. The file decides how to render — and on the Deka site, it does so in two sub-flavors:
+   - *Pure inline HTML* — the file outputs raw markup with `data-section-type="..."` attributes for CSS scoping. Used by `home.php` (the bespoke editorial homepage).
+   - *Compose framework sections* — the file calls `anchor_set_template_data([...])` then `get_template_part('template-parts/sections/{type}')` for each section it wants. Used by `about.php`, `services.php`, `single-service.php`, `contact.php`. The shop templates (`archive-laser_product.php`, `single-laser_product.php`) use the higher-level `anchor_render_sections([...])` wrapper.
+2. **Config-driven (legacy / fallback).** If no `page-content/` override exists, the framework falls back to `anchor_get_page_config($slug)` → `anchor_render_sections($config['sections'])` → for each section: validate → resolve media → `get_template_part()` → section template reads data via `anchor_get_template_data()`. Still active for any page that has no `page-content/` override (e.g. the blog/events pages on the Deka site).
+
+The section-template rendering layer (`template-parts/sections/`, `inc/section-renderer.php`, `inc/validation.php`) is part of the **active public API** — child themes consume it from both paradigm 1's section-composing flavor and paradigm 2.
 
 The decision tree at runtime:
 
@@ -41,7 +45,7 @@ The rendering engine. Generic, client-agnostic. Contains no client names or clie
 
 **Key directories:**
 - `inc/` — Engine: config-loader, section-renderer, media-resolver, helpers, validation, page-content-loader, plus nav walker classes (`class-anchor-nav-walker.php`, `class-anchor-footer-walker.php`, `class-anchor-mobile-walker.php`).
-- `template-parts/sections/` — Generic section templates: hero, split-content, iso-split, card-grid, icon-list, cta-band, team-grid, services-tabs, testimonial-band, faq-list, contact-block, gallery-band, text-block, shortcode-block. Used only by the config-driven path.
+- `template-parts/sections/` — Generic section templates: hero, split-content, iso-split, card-grid, icon-list, cta-band, team-grid, services-tabs, testimonial-band, faq-list, contact-block, gallery-band, text-block, shortcode-block. Loaded by both the config-driven renderer *and* by direct-PHP page-content files via `anchor_set_template_data()` + `get_template_part()`.
 - `template-parts/components/` — Reusable components (button, button-group, heading-group, image-wrapper, card, icon-item, quote-item, section-intro, content-sidebar, hero-carousel, rotating-text, sticky-footer).
 - `template-parts/navigation/` — Header (fixed pill) and footer nav.
 - `template-parts/partials/` — Reusable PHP snippets (cta-band.php, testimonials.php); included inline.

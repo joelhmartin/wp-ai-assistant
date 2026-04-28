@@ -127,15 +127,16 @@ foreach ( $accessories as $p ) {
 </section>
 <?php endif; ?>
 
-<!-- ── FINAL CTA (reuse home's deka_final section type) ────── -->
+<!-- ── FINAL CTA ──────────────────────────────────────────── -->
 <?php
 if ( function_exists( 'anchor_render_sections' ) ) {
 	anchor_render_sections( [
 		[
-			'type'  => 'deka_final',
-			'props' => [
+			'type'    => 'cta_band',
+			'variant' => 'dark',
+			'props'   => [
 				'eyebrow'       => '— Ordering',
-				'heading'       => "Not sure which instrument you need?\nWe'll **talk it through**.",
+				'heading'       => "Not sure which instrument you need? We'll talk it through.",
 				'text'          => "Every DEKA practice gets a dedicated clinical specialist. They know your system, your room, and your schedule — call us and they'll help you order against a case you're actually running.",
 				'primary_cta'   => [ 'label' => 'Speak with a Specialist', 'url' => '/contact/' ],
 				'secondary_cta' => [ 'label' => 'Call (866) 223-4543',    'url' => 'tel:+18662234543' ],
