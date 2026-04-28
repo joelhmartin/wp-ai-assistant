@@ -1,10 +1,14 @@
 <?php
 /**
  * Plugin Name: Anchor Page Assistant
+ * Plugin URI:  https://github.com/joelhmartin/anchor-page-assistant
+ * GitHub Plugin URI: joelhmartin/anchor-page-assistant
  * Description: AI-powered page builder and config manager for the Anchor Framework theme system.
- * Version:     0.2.0
+ * Version:     1.0.0
  * Author:      Anchor
+ * Author URI:  https://github.com/joelhmartin
  * Requires PHP: 7.4
+ * Requires at least: 6.4
  * License:     GPL-2.0-or-later
  *
  * @package Anchor_Page_Assistant
@@ -12,9 +16,12 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'APA_VERSION', '0.2.0' );
+define( 'APA_VERSION', '1.0.0' );
 define( 'APA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'APA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+// Updater (must run early so admin sees version notifications).
+require_once APA_PLUGIN_DIR . 'includes/updater.php';
 
 // Core includes.
 require_once APA_PLUGIN_DIR . 'includes/class-config-writer.php';
