@@ -39,7 +39,7 @@
     z-index: 100000;
 }
 
-.apa-fe-toggle {
+body button.apa-fe-toggle {
     position: fixed;
     bottom: var(--apa-bottom);
     right: 24px;
@@ -59,7 +59,7 @@
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.apa-fe-toggle:hover {
+body button.apa-fe-toggle:hover {
     transform: scale(1.08);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
 }
@@ -183,6 +183,23 @@
     align-self: flex-start;
     border-bottom-left-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Context-captured confirmation */
+.apa-fe-msg--context {
+    background: #eef6fb;
+    color: #1d4f6e;
+    border: 1px solid #b8ddef;
+    font-size: 12px;
+}
+
+/* "Please click first" tip — no AI call, JS-generated */
+.apa-fe-msg--tip {
+    background: #fffbea;
+    color: #7a5a00;
+    border: 1px solid #ffe082;
+    font-size: 12px;
+    font-style: italic;
 }
 
 /* Input */
@@ -332,7 +349,7 @@
    ======================================================================= */
 
 /* Edit toggle button — positioned above chat toggle */
-.apa-edit-toggle {
+body button.apa-edit-toggle {
     position: fixed;
     bottom: calc(var(--apa-bottom) + 68px);
     right: 24px;
@@ -352,13 +369,13 @@
     transition: all 0.2s;
 }
 
-.apa-edit-toggle:hover {
+body button.apa-edit-toggle:hover {
     background: #1d1a1a;
     color: #fff;
     border-color: #1d1a1a;
 }
 
-.apa-edit-mode .apa-edit-toggle {
+body .apa-edit-mode button.apa-edit-toggle {
     background: #2271b1;
     color: #fff;
     border-color: #2271b1;

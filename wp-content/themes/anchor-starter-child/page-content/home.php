@@ -62,7 +62,7 @@ $voices_count = count( $safe_voices );
 
         <div>
             <h1 class="display hero-headline" style="color: var(--deka-ivory);">
-                <span class="line"><span>The standard</span></span>
+                <span class="line"><span>The standarg</span></span>
                 <span class="line"><span>of <em>precision light</em></span></span>
                 <span class="line"><span>in modern dentistry.</span></span>
             </h1>

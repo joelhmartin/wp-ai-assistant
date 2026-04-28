@@ -290,7 +290,7 @@ class APA_Prompt_Builder {
         $prompt .= "but the preferred approach is to write HTML directly. Only use the section renderer for framework sections ";
         $prompt .= "that would be very long to inline (hero variants, services-tabs). Deka editorial sections should always be inline HTML.\n\n";
 
-        // Collect CSS files: per-page CSS first, then theme CSS.
+        // Collect CSS files: per-page CSS first, then only the theme CSS files relevant to this page.
         $css_found = [];
 
         // Per-page CSS (highest priority — most relevant for this page).
@@ -302,8 +302,18 @@ class APA_Prompt_Builder {
             }
         }
 
-        // Theme CSS files.
-        foreach ( APA_REST_Files::get_css_allowlist() as $name ) {
+        // Theme CSS: always include base overrides; include page-specific bespoke CSS only when relevant.
+        $always_include = [ 'client-overrides.css', 'client-tokens.css' ];
+        $page_specific  = [
+            'home'  => 'deka-home.css',
+            'shop'  => 'deka-shop.css',
+        ];
+        $theme_css_files = $always_include;
+        if ( isset( $page_specific[ $page_slug ] ) ) {
+            array_unshift( $theme_css_files, $page_specific[ $page_slug ] );
+        }
+
+        foreach ( $theme_css_files as $name ) {
             $path = trailingslashit( get_stylesheet_directory() ) . 'assets/css/' . $name;
             if ( file_exists( $path ) ) {
                 $css = file_get_contents( $path );
@@ -364,16 +374,31 @@ class APA_Prompt_Builder {
             }
         }
 
+        $prompt .= "## DOM Context (Cmd+Click Selection)\n\n";
+        $prompt .= "When the user Cmd+clicks an element on the page, their message begins with a [DOM Context] block containing:\n";
+        $prompt .= "- The section's rendered HTML with all class names\n";
+        $prompt .= "- CSS rules extracted from loaded stylesheets that match the section's classes\n";
+        $prompt .= "- The source file path\n\n";
+        $prompt .= "**Use this context to:**\n";
+        $prompt .= "- CSS changes: read the EXACT selector from the HTML — never guess class names. Use the extracted CSS to see the current rules and write the correct override.\n";
+        $prompt .= "- PHP/content changes: the HTML shows what the PHP renders so you can find the right element to modify.\n\n";
+        $prompt .= "**Mismatch detection:** If the user's request clearly doesn't match the [DOM Context] section (e.g., context is the Hero but user asks to change the contact form), ask one clarifying question before making any changes: \"I have context for [actual section] — did you mean to change something there, or Cmd+click the [requested section] first?\"\n\n";
+
         $prompt .= "## Current File: page-content/{$page_slug}.php\n\n";
         $prompt .= "```php\n" . $contents . "\n```\n\n";
 
-        $prompt .= "## Response Format\n\n";
-        $prompt .= "1. A short explanation of the change.\n";
-        $prompt .= "2. For PHP changes: the COMPLETE updated page file in a single \`\`\`php fenced block. Always include the opening `<?php` tag.\n";
-        $prompt .= "3. For CSS-only changes: the COMPLETE updated CSS file in a \`\`\`css fenced block. First line inside must be `/* file: {$page_slug}.css */` (or the correct theme filename).\n";
-        $prompt .= "4. For changes requiring both PHP and CSS: return one \`\`\`php block AND one \`\`\`css block.\n";
-        $prompt .= "5. Never include `get_header()` or `get_footer()` in the PHP output.\n";
-        $prompt .= "6. If the user asks a question without requesting a change, answer normally without any code block.\n";
+        $prompt .= "## Response Format — READ THIS CAREFULLY\n\n";
+        $prompt .= "When the user asks for a change, you MUST respond with the actual code. Never describe what the user should do — DO IT YOURSELF.\n\n";
+        $prompt .= "### Rules\n";
+        $prompt .= "- One sentence saying what you changed. No headers. No bullet lists. No 'Note:' or 'Summary:' sections.\n";
+        $prompt .= "- Immediately follow with the complete code block(s). Never leave a code block empty or with placeholder text.\n";
+        $prompt .= "- For CSS-only changes: one \`\`\`css block. First line inside: `/* file: {$page_slug}.css */` (or correct filename).\n";
+        $prompt .= "- For PHP changes: one \`\`\`php block with the COMPLETE file contents including the opening `<?php` tag.\n";
+        $prompt .= "- For changes needing both: one \`\`\`php block then one \`\`\`css block.\n";
+        $prompt .= "- Never include `get_header()` or `get_footer()`.\n";
+        $prompt .= "- Never tell the user to 'make sure to include' or 'add this to your stylesheet' — write the code yourself.\n";
+        $prompt .= "- If you are unsure of the exact selector, inspect the CSS context above and make your best specific attempt. Never leave it blank.\n\n";
+        $prompt .= "If the user asks a question (no change requested), answer in 1–3 sentences — no code blocks.\n";
 
         return $prompt;
     }

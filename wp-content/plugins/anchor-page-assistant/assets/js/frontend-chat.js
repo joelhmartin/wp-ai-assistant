@@ -23,6 +23,7 @@
     var selectedContext = '';
     var selectedSectionType  = '';
     var lastSelectedSectionType = '';
+    var hasDomContext = false;
 
     // Load persisted state
     try {
@@ -127,12 +128,19 @@
         var message = input.value.trim();
         if ( ! message ) return;
 
+        // Gate: if no DOM context and this looks like a change request, prompt without an AI call.
+        if ( ! hasDomContext && ! selectedContext && looksLikeChangeRequest( message ) ) {
+            addMsg( 'assistant', 'Cmd+click the section you want to change, then resend.', false, 'tip' );
+            return; // Leave message in the input so the user can resend immediately after clicking.
+        }
+
         input.value = '';
         addMsg( 'user', message );
 
-        // Prepend selected context if any, then clear it
+        // Prepend selected context if any, then clear it.
         var fullMessage = selectedContext ? selectedContext + '\n\n' + message : message;
         selectedContext = '';
+        hasDomContext   = false;
         var sectionTypeForRequest = selectedSectionType;
         selectedSectionType = '';
 
@@ -372,6 +380,8 @@
     function clearChat() {
         history = [];
         chatMessages = [];
+        selectedContext = '';
+        hasDomContext   = false;
         saveState();
         document.getElementById( 'apa-fe-messages' ).innerHTML = '';
         addMsg( 'assistant', 'Chat cleared. What would you like to do?' );
@@ -560,10 +570,10 @@
 
     // ─── Helpers ──────────────────────────────────────────────────
 
-    function addMsg( role, text, persist ) {
+    function addMsg( role, text, persist, kind ) {
         var container = document.getElementById( 'apa-fe-messages' );
         var msg = document.createElement( 'div' );
-        msg.className = 'apa-fe-msg apa-fe-msg--' + role;
+        msg.className = 'apa-fe-msg apa-fe-msg--' + role + ( kind ? ' apa-fe-msg--' + kind : '' );
         msg.textContent = text;
         container.appendChild( msg );
         container.scrollTop = container.scrollHeight;
@@ -655,44 +665,59 @@
 
             if ( el.closest( '.apa-fe-panel, .apa-fe-toggle' ) ) return;
 
-            // Build context from selected element
-            var section = el.closest( '[data-section-type]' );
-            var sectionType = section ? section.dataset.sectionType : '';
+            // Always use the section element for context (not sub-elements).
+            var section      = el.closest( '[data-section-type]' );
+            var contextEl    = section || el;
+            var sectionType  = section ? section.dataset.sectionType  : '';
             var sectionVariant = section ? section.dataset.sectionVariant : '';
             var sectionIndex = section ? getSectionIndex( section ) : -1;
-
-            // What was clicked
-            var tag = el.tagName.toLowerCase();
-            var classes = el.className ? el.className.split( /\s+/ ).filter( function(c) { return c.startsWith('anchor-'); } ).join( ', ' ) : '';
-            var text = el.textContent.trim().substring( 0, 80 );
+            var tag          = el.tagName.toLowerCase();
 
             // Pretty label: "services_tabs" → "Services Tabs"
             var label = sectionType
                 ? sectionType.replace( /_/g, ' ' ).replace( /\b\w/g, function(c) { return c.toUpperCase(); } )
                 : tag;
 
-            // Heading text for display
-            var heading = section ? section.querySelector( 'h1, h2, h3' ) : null;
+            // Heading text for display label
+            var heading     = contextEl.querySelector( 'h1, h2, h3' );
             var headingText = heading ? heading.textContent.trim().substring( 0, 40 ) : '';
 
-            // Store full context silently for the AI
-            selectedContext = '[Section ' + sectionIndex + ': type=' + sectionType +
-                ( sectionVariant ? ', variant=' + sectionVariant : '' ) +
-                ( headingText ? ', heading="' + headingText + '"' : '' ) +
-                ( classes ? ', element=' + classes : '' ) +
-                ( data.pageContentPath ? ', file=' + data.pageContentPath : '' ) + ']';
+            // ── Collect DOM context ─────────────────────────────────
+            var rawHtml     = contextEl.outerHTML;
+            var htmlSnippet = rawHtml.length > 4000 ? rawHtml.substring( 0, 4000 ) + '\n... [truncated]' : rawHtml;
+            var allClasses  = extractAllClasses( rawHtml );
+            var cssResult   = extractCssForClasses( allClasses );
+
+            selectedContext =
+                '[DOM Context]\n' +
+                'Section: ' + ( sectionType || tag ) +
+                ( sectionVariant ? ' (variant: ' + sectionVariant + ')' : '' ) +
+                ' (index: ' + sectionIndex + ')\n' +
+                ( data.pageContentPath ? 'File: ' + data.pageContentPath + '\n' : '' ) +
+                '\nHTML:\n' + htmlSnippet + '\n' +
+                ( cssResult.rules
+                    ? '\nRelevant CSS' + ( cssResult.files.length ? ' (from ' + cssResult.files.join( ', ' ) + ')' : '' ) + ':\n' + cssResult.rules + '\n'
+                    : '' ) +
+                '[/DOM Context]';
+
+            hasDomContext           = true;
             selectedSectionType     = sectionType || '';
             lastSelectedSectionType = sectionType || '';
 
-            // Open chat and focus input (don't paste context into input)
+            // Open chat and focus input
             if ( ! isOpen ) togglePanel();
-            var input = document.getElementById( 'apa-fe-input' );
-            input.focus();
-
+            document.getElementById( 'apa-fe-input' ).focus();
             clearHighlight();
 
-            // Clean display message
-            addMsg( 'assistant', 'Selected: ' + label + ( headingText ? ' — "' + headingText + '"' : '' ) + '. What would you like to change?' );
+            // Confirmation — no AI call, JS shows this directly
+            addMsg(
+                'assistant',
+                '✓ ' + label +
+                    ( headingText ? ' — “' + headingText + '”' : '' ) +
+                    ' (' + cssResult.ruleCount + ' CSS rules captured). What would you like to change?',
+                true,
+                'context'
+            );
         } );
     }
 
@@ -719,6 +744,86 @@
             if ( sections[ i ] === el ) return i;
         }
         return -1;
+    }
+
+    // ─── DOM Context Utilities ────────────────────────────────────
+
+    function looksLikeChangeRequest( msg ) {
+        var lower = msg.toLowerCase().trim();
+        if ( lower.slice(-1) === '?' ) return false;
+        var qWords = [ 'what ', 'how ', 'why ', 'where ', 'which ', 'who ', 'is ', 'are ', 'do ', 'does ',
+                       'can ', 'could ', 'should ', 'would ', 'tell me', 'explain', 'describe', 'show me', 'list ' ];
+        for ( var i = 0; i < qWords.length; i++ ) {
+            if ( lower.indexOf( qWords[i] ) === 0 ) return false;
+        }
+        // Very short or single-word messages are ambiguous — let through
+        if ( msg.trim().split( /\s+/ ).length <= 2 ) return false;
+        return true;
+    }
+
+    function extractAllClasses( htmlStr ) {
+        var classes = [];
+        var re = /\bclass="([^"]*)"/g;
+        var m;
+        while ( ( m = re.exec( htmlStr ) ) !== null ) {
+            m[1].split( /\s+/ ).forEach( function( c ) {
+                c = c.trim();
+                if ( c && classes.indexOf( c ) === -1 ) classes.push( c );
+            } );
+        }
+        return classes;
+    }
+
+    function selectorMatchesClasses( selectorText, classes ) {
+        if ( ! selectorText ) return false;
+        return classes.some( function( c ) {
+            return selectorText.indexOf( '.' + c ) !== -1;
+        } );
+    }
+
+    function collectCssRule( rule, classes, rules, seen ) {
+        if ( rule.cssRules ) {
+            // Wrapper: @media, @supports, @layer, etc.
+            var inner = [];
+            for ( var k = 0; k < rule.cssRules.length; k++ ) {
+                var r = rule.cssRules[ k ];
+                if ( r.selectorText && selectorMatchesClasses( r.selectorText, classes ) ) {
+                    inner.push( '  ' + r.cssText );
+                }
+            }
+            if ( inner.length ) {
+                var wrapHead = rule.cssText.substring( 0, rule.cssText.indexOf( '{' ) ).trim();
+                var text     = wrapHead + ' {\n' + inner.join( '\n' ) + '\n}';
+                if ( ! seen[ text ] ) { seen[ text ] = true; rules.push( text ); }
+            }
+        } else if ( rule.selectorText && selectorMatchesClasses( rule.selectorText, classes ) ) {
+            var text = rule.cssText;
+            if ( ! seen[ text ] ) { seen[ text ] = true; rules.push( text ); }
+        }
+    }
+
+    function extractCssForClasses( classes ) {
+        if ( ! classes.length ) return { rules: '', files: [], ruleCount: 0 };
+        var rules = [];
+        var seen  = {};
+        var files = [];
+        var sheets = document.styleSheets;
+        for ( var i = 0; i < sheets.length; i++ ) {
+            try {
+                var sheet    = sheets[ i ];
+                var cssRules = sheet.cssRules || sheet.rules;
+                if ( ! cssRules ) continue;
+                var prevLen  = rules.length;
+                for ( var j = 0; j < cssRules.length; j++ ) {
+                    collectCssRule( cssRules[ j ], classes, rules, seen );
+                }
+                if ( rules.length > prevLen && sheet.href ) {
+                    var filename = sheet.href.split( '/' ).pop().split( '?' )[ 0 ];
+                    if ( files.indexOf( filename ) === -1 ) files.push( filename );
+                }
+            } catch(e) { /* cross-origin stylesheet — skip */ }
+        }
+        return { rules: rules.join( '\n' ), files: files, ruleCount: rules.length };
     }
 
     // Boot

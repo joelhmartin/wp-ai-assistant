@@ -173,6 +173,10 @@ class APA_File_Writer {
 		}
 
 		$php = defined( 'PHP_BINARY' ) && PHP_BINARY ? PHP_BINARY : 'php';
+		// FPM binaries don't accept -l; fall back to the CLI `php` on PATH.
+		if ( false !== strpos( $php, 'fpm' ) ) {
+			$php = 'php';
+		}
 		$cmd = escapeshellarg( $php ) . ' -l ' . escapeshellarg( $path ) . ' 2>&1';
 		$out = @shell_exec( $cmd );
 
