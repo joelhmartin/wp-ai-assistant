@@ -8,7 +8,7 @@
     'use strict';
 
     // ------- Nav darken -----------------------------------------------------
-    var nav = document.getElementById('deka-nav');
+    var nav = document.getElementById('site-nav');
 
     function darkSections() {
         return Array.prototype.slice.call(
@@ -106,9 +106,9 @@
                 }
             });
         }, { threshold: 0.12 });
-        document.querySelectorAll('.deka-home .reveal').forEach(function (el) { io.observe(el); });
+        document.querySelectorAll('.home-editorial .reveal').forEach(function (el) { io.observe(el); });
     } else {
-        document.querySelectorAll('.deka-home .reveal').forEach(function (el) { el.classList.add('in'); });
+        document.querySelectorAll('.home-editorial .reveal').forEach(function (el) { el.classList.add('in'); });
     }
 
     // ------- Voices slider --------------------------------------------------
