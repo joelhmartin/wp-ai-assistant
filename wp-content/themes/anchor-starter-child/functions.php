@@ -130,12 +130,29 @@ add_action( 'wp_enqueue_scripts', 'anchor_child_enqueue_page_css' );
  * reveal animations all apply consistently across shop URLs.
  */
 add_filter( 'body_class', function( $classes ) {
-	if ( is_front_page() ) {
-		$classes[] = 'deka-home';
+	$slug = '';
+	$obj  = get_queried_object();
+	if ( $obj && isset( $obj->post_name ) ) {
+		$slug = $obj->post_name;
+	}
+	$home_slugs = array( 'home-v1', 'home-v2', 'home-v3', 'home-v4' );
+
+	if ( is_front_page() || in_array( $slug, $home_slugs, true ) ) {
+		$classes[] = 'home-editorial';
+		// Per-version class. Front page resolves to whichever WP page is set as
+		// the static front page; if that has a slug in $home_slugs we tag it
+		// directly. Otherwise we default to home-v1 so v1 styles still apply
+		// at /.
+		$front_id   = (int) get_option( 'page_on_front' );
+		$front_slug = $front_id ? get_post_field( 'post_name', $front_id ) : '';
+		$active     = in_array( $slug, $home_slugs, true ) ? $slug
+		            : ( in_array( $front_slug, $home_slugs, true ) ? $front_slug : 'home-v1' );
+		$classes[]  = $active;
 	}
 	if ( is_post_type_archive( 'laser_product' ) || is_singular( 'laser_product' ) ) {
-		$classes[] = 'deka-home'; // reuse the home stylesheet scope
-		$classes[] = 'deka-shop';
+		$classes[] = 'home-editorial'; // shared chrome scope
+		$classes[] = 'home-v1';        // shop reuses v1 typography/animations
+		$classes[] = 'shop-editorial';
 	}
 	return $classes;
 } );
