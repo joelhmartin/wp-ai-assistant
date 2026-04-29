@@ -18,7 +18,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <header class="hero" id="top" data-section-type="hero">
   <img class="hero-poster" src="<?php echo esc_url( anchor_resolve_media( 'home_v3_hero_poster' ) ); ?>" alt="" aria-hidden="true" decoding="async" fetchpriority="high">
   <div class="hero-video-frame" aria-hidden="true">
-    <iframe id="hero-vimeo" src="https://player.vimeo.com/video/1186069736?background=1&amp;autoplay=1&amp;loop=1&amp;muted=1&amp;autopause=0&amp;controls=0&amp;title=0&amp;byline=0&amp;portrait=0&amp;dnt=1" allow="autoplay; fullscreen" allowfullscreen="" frameborder="0"></iframe>
+    <video id="hero-video" autoplay muted loop playsinline preload="auto"
+           poster="<?php echo esc_url( anchor_resolve_media( 'home_v3_hero_poster' ) ); ?>">
+      <source src="<?php echo esc_url( home_url( '/wp-content/uploads/2026/04/deka-hero-720p.webm' ) ); ?>" type="video/webm">
+      <source src="<?php echo esc_url( home_url( '/wp-content/uploads/2026/04/deka-hero-720p.mp4'  ) ); ?>" type="video/mp4">
+    </video>
   </div>
   <div class="hero-video-overlay"></div>
   <div class="hero-bottom-fade"></div>

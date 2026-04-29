@@ -1,9 +1,9 @@
 /* === script block 0 === */
-// Fade out poster once the Vimeo background video starts playing
+// Fade out poster once the self-hosted hero video starts playing.
   (function() {
-    const hero = document.getElementById('top');
-    const iframe = document.getElementById('hero-vimeo');
-    if (!hero || !iframe) return;
+    const hero  = document.getElementById('top');
+    const video = document.getElementById('hero-video');
+    if (!hero || !video) return;
 
     let done = false;
     const reveal = () => {
@@ -12,28 +12,14 @@
       hero.classList.add('video-ready');
     };
 
-    // Listen for Vimeo postMessage 'play' event
-    window.addEventListener('message', (e) => {
-      if (typeof e.origin === 'string' && !e.origin.includes('vimeo.com')) return;
-      let data = e.data;
-      try { if (typeof data === 'string') data = JSON.parse(data); } catch (_) {}
-      if (data && (data.event === 'play' || data.event === 'playing' || data.event === 'bufferend')) {
-        reveal();
-      }
-    });
+    if (!video.paused && video.currentTime > 0) {
+      reveal();
+    } else {
+      video.addEventListener('playing', reveal, { once: true });
+    }
 
-    // Ask the player to send us events
-    iframe.addEventListener('load', () => {
-      try {
-        iframe.contentWindow.postMessage('{"method":"addEventListener","value":"play"}', '*');
-        iframe.contentWindow.postMessage('{"method":"addEventListener","value":"playing"}', '*');
-      } catch (_) {}
-      // Safety fallback: reveal after a max wait even if no event arrives
-      setTimeout(reveal, 4500);
-    });
-
-    // Final safety net
-    setTimeout(reveal, 8000);
+    // Final safety net so the poster never sticks if playback never reports.
+    setTimeout(reveal, 6000);
   })();
 
 /* === script block 1 === */
