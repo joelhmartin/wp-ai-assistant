@@ -1,0 +1,91 @@
+/* ==========================================================================
+   site-nav.css
+   Shared header chrome styles — Versions dropdown, Shop link, active-state.
+   Loaded on every page that renders .site-nav (the four home-v* pages and
+   the shop archive + single product).
+   ========================================================================== */
+
+.site-nav .nav-links { gap: 1.5rem; }
+
+/* Versions dropdown */
+.site-nav .nav-dropdown {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+.site-nav .nav-dropdown__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	background: transparent;
+	border: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+	padding: 0;
+}
+.site-nav .nav-dropdown__toggle .chev {
+	width: 10px;
+	height: 10px;
+	transition: transform 160ms ease;
+}
+.site-nav .nav-dropdown:hover .nav-dropdown__toggle .chev,
+.site-nav .nav-dropdown:focus-within .nav-dropdown__toggle .chev {
+	transform: rotate(180deg);
+}
+.site-nav .nav-dropdown__menu {
+	position: absolute;
+	top: calc(100% + 0.75rem);
+	left: 50%;
+	transform: translateX(-50%) translateY(-4px);
+	min-width: 12rem;
+	padding: 0.5rem 0;
+	background: var(--deka-ivory, #f5f4ef);
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	border-radius: 0.5rem;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 160ms ease, transform 160ms ease;
+	z-index: 50;
+}
+.site-nav .nav-dropdown:hover .nav-dropdown__menu,
+.site-nav .nav-dropdown:focus-within .nav-dropdown__menu {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateX(-50%) translateY(0);
+}
+.site-nav .nav-dropdown__item {
+	display: block;
+	padding: 0.5rem 1rem;
+	color: var(--deka-ink, #040541);
+	text-decoration: none;
+	font-size: 0.875rem;
+	white-space: nowrap;
+}
+.site-nav .nav-dropdown__item:hover,
+.site-nav .nav-dropdown__item:focus {
+	background: rgba(0, 0, 0, 0.04);
+}
+.site-nav .nav-dropdown__item[aria-current="page"] {
+	font-weight: 500;
+}
+.site-nav .nav-dropdown__item[aria-current="page"]::before {
+	content: "→ ";
+	margin-right: 0.25rem;
+	opacity: 0.6;
+}
+
+/* When the nav is in dark mode (over a dark hero), invert the dropdown panel
+   so it stays readable. Same swap behavior as the light/dark logo. */
+.site-nav.nav--dark .nav-dropdown__menu {
+	background: var(--deka-ink, #040541);
+	border-color: rgba(255, 255, 255, 0.1);
+}
+.site-nav.nav--dark .nav-dropdown__item {
+	color: var(--deka-ivory, #f5f4ef);
+}
+.site-nav.nav--dark .nav-dropdown__item:hover,
+.site-nav.nav--dark .nav-dropdown__item:focus {
+	background: rgba(255, 255, 255, 0.06);
+}
