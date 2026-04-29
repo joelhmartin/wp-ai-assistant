@@ -1,10 +1,13 @@
 <?php
 /**
- * Single template for a laser_product — /shop/{slug}/.
+ * WooCommerce single-product override — /shop/{slug}/.
+ *
  * Reads the product's full config from config/data.php (via deka_get_product)
  * using the current WP post_name, then renders the editorial product page.
+ * Falls back to the WC product post's own title/excerpt/content if no entry
+ * exists in config/data.php.
  *
- * @package Anchor_Framework
+ * @package Anchor_Starter_Child
  */
 
 get_header();

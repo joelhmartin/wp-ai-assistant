@@ -35,7 +35,10 @@ if ( ! function_exists( 'anchor_starter_child_enqueue_styles' ) ) :
 		$slug          = ( $obj && isset( $obj->post_name ) ) ? $obj->post_name : '';
 		$home_slugs    = array( 'home-v1', 'home-v2', 'home-v3', 'home-v4' );
 		$is_home_var   = is_front_page() || in_array( $slug, $home_slugs, true );
-		$is_shop       = is_post_type_archive( 'laser_product' ) || is_singular( 'laser_product' );
+		$is_shop       = ( function_exists( 'is_shop' ) && is_shop() )
+		              || ( function_exists( 'is_product' ) && is_product() )
+		              || ( function_exists( 'is_product_category' ) && is_product_category() )
+		              || ( function_exists( 'is_product_tag' ) && is_product_tag() );
 		$bespoke       = $is_home_var || $is_shop;
 
 		if ( $bespoke ) {
@@ -158,7 +161,11 @@ add_filter( 'body_class', function( $classes ) {
 		            : ( in_array( $front_slug, $home_slugs, true ) ? $front_slug : 'home-v1' );
 		$classes[]  = $active;
 	}
-	if ( is_post_type_archive( 'laser_product' ) || is_singular( 'laser_product' ) ) {
+	$is_woo_shop = ( function_exists( 'is_shop' ) && is_shop() )
+	            || ( function_exists( 'is_product' ) && is_product() )
+	            || ( function_exists( 'is_product_category' ) && is_product_category() )
+	            || ( function_exists( 'is_product_tag' ) && is_product_tag() );
+	if ( $is_woo_shop ) {
 		$classes[] = 'home-editorial'; // shared chrome scope
 		$classes[] = 'home-v1';        // shop reuses v1 typography/animations
 		$classes[] = 'shop-editorial';
@@ -167,52 +174,26 @@ add_filter( 'body_class', function( $classes ) {
 } );
 
 /**
- * Register the `laser_product` custom post type, rewriting to /shop/{slug}/.
+ * WooCommerce theme support — declares the child theme is WC-aware so WC
+ * uses our template overrides under wp-content/themes/.../woocommerce/.
  */
-if ( ! function_exists( 'deka_register_laser_product_cpt' ) ) :
-	function deka_register_laser_product_cpt() {
-		register_post_type( 'laser_product', [
-			'labels' => [
-				'name'          => 'Laser Products',
-				'singular_name' => 'Laser Product',
-				'add_new_item'  => 'Add New Product',
-				'edit_item'     => 'Edit Product',
-				'all_items'     => 'All Products',
-				'menu_name'     => 'Laser Products',
-			],
-			'public'             => true,
-			'show_in_menu'       => true,
-			'show_in_rest'       => true,
-			'has_archive'        => 'shop',
-			'menu_icon'          => 'dashicons-store',
-			'menu_position'      => 21,
-			'supports'           => [ 'title', 'editor', 'thumbnail', 'excerpt' ],
-			'rewrite'            => [ 'slug' => 'shop', 'with_front' => false ],
-			'hierarchical'       => false,
-			'capability_type'    => 'post',
-		] );
-
-		register_taxonomy( 'laser_product_category', 'laser_product', [
-			'labels' => [
-				'name'          => 'Categories',
-				'singular_name' => 'Category',
-			],
-			'public'            => true,
-			'show_in_rest'      => true,
-			'hierarchical'      => true,
-			'show_admin_column' => true,
-			'rewrite'           => [ 'slug' => 'shop/category', 'with_front' => false ],
-		] );
-	}
-endif;
-add_action( 'init', 'deka_register_laser_product_cpt', 5 );
+add_action( 'after_setup_theme', function () {
+	add_theme_support( 'woocommerce' );
+} );
 
 /**
- * Flush rewrite rules once after the CPT is registered. Keyed by a version
- * constant so future CPT/rewrite changes can force a reflush by bumping it.
+ * The legacy `laser_product` CPT was migrated to WooCommerce `product`
+ * posts. Registration is intentionally deregistered to free the /shop/
+ * namespace for WC. The 31 posts remain in the database for rollback;
+ * once the WC migration is verified in production, they can be deleted.
+ */
+
+/**
+ * Flush rewrite rules once when this version-key changes. Bump the constant
+ * any time CPT registration, taxonomies, or WC permalink structure shifts.
  */
 add_action( 'init', function() {
-	$version = '1';
+	$version = '2-woo-migration';
 	if ( get_option( 'deka_rewrite_flushed' ) !== $version ) {
 		flush_rewrite_rules( false );
 		update_option( 'deka_rewrite_flushed', $version );
@@ -220,7 +201,7 @@ add_action( 'init', function() {
 }, 20 );
 
 /**
- * Seed the laser_product CPT from config/data.php on first request.
+ * Seed WooCommerce product posts from config/data.php on first request.
  * Idempotent: runs once, tracked by the `deka_products_seeded` option.
  * Re-run by deleting that option in wp_options.
  */
@@ -239,13 +220,13 @@ add_action( 'init', function() {
 		if ( empty( $p['slug'] ) ) {
 			continue;
 		}
-		// Skip if a post with this slug already exists.
-		$existing = get_page_by_path( $p['slug'], OBJECT, 'laser_product' );
+		// Skip if a product with this slug already exists.
+		$existing = get_page_by_path( $p['slug'], OBJECT, 'product' );
 		if ( $existing ) {
 			continue;
 		}
 		$post_id = wp_insert_post( [
-			'post_type'    => 'laser_product',
+			'post_type'    => 'product',
 			'post_status'  => 'publish',
 			'post_title'   => isset( $p['name'] ) ? $p['name'] : $p['slug'],
 			'post_name'    => $p['slug'],
@@ -254,10 +235,23 @@ add_action( 'init', function() {
 		] );
 		if ( $post_id && ! is_wp_error( $post_id ) ) {
 			if ( ! empty( $p['category'] ) ) {
-				wp_set_object_terms( $post_id, $p['category'], 'laser_product_category' );
+				$term = get_term_by( 'name', $p['category'], 'product_cat' );
+				if ( ! $term ) {
+					$created = wp_insert_term( $p['category'], 'product_cat' );
+					if ( ! is_wp_error( $created ) ) {
+						$term = (object) array( 'term_id' => $created['term_id'] );
+					}
+				}
+				if ( $term ) {
+					wp_set_object_terms( $post_id, (int) $term->term_id, 'product_cat' );
+				}
 			}
 			// Store the data.php slug on the post for lookups in templates.
 			update_post_meta( $post_id, '_deka_product_slug', $p['slug'] );
+			// Catalog-mode WC defaults.
+			update_post_meta( $post_id, '_visibility',   'visible' );
+			update_post_meta( $post_id, '_stock_status', 'instock' );
+			wp_set_object_terms( $post_id, 'simple', 'product_type' );
 		}
 	}
 	update_option( 'deka_products_seeded', '1' );
@@ -409,7 +403,7 @@ function deka_seed_media() {
 			if ( ! empty( $p['featured'] ) ) {
 				// Systems use theme-local files (handled above); set their
 				// featured image on the CPT post.
-				$post = get_page_by_path( $p['slug'], OBJECT, 'laser_product' );
+				$post = get_page_by_path( $p['slug'], OBJECT, 'product' );
 				if ( $post && ! empty( $map[ $p['image'] ] ) ) {
 					set_post_thumbnail( $post->ID, (int) $map[ $p['image'] ] );
 				}
@@ -420,7 +414,7 @@ function deka_seed_media() {
 				continue;
 			}
 			// Find the CPT post for this product.
-			$post = get_page_by_path( $p['slug'], OBJECT, 'laser_product' );
+			$post = get_page_by_path( $p['slug'], OBJECT, 'product' );
 			if ( ! $post ) {
 				continue;
 			}
@@ -467,7 +461,7 @@ if ( ! function_exists( 'deka_product_image_url' ) ) :
 	function deka_product_image_url( $product, $size = 'medium' ) {
 		$slug = isset( $product['slug'] ) ? $product['slug'] : '';
 		if ( $slug ) {
-			$post = get_page_by_path( $slug, OBJECT, 'laser_product' );
+			$post = get_page_by_path( $slug, OBJECT, 'product' );
 			if ( $post ) {
 				$thumb = get_the_post_thumbnail_url( $post->ID, $size );
 				if ( $thumb ) {

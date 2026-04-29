@@ -1,10 +1,13 @@
 <?php
 /**
- * Archive template for the laser_product CPT — the /shop/ landing.
- * Pulls all products from config/data.php and renders the editorial
- * catalogue: hero → systems row → accessories grid → final CTA.
+ * WooCommerce archive override — the /shop/ landing.
  *
- * @package Anchor_Framework
+ * Catalog mode. Pulls all products from config/data.php and renders the
+ * editorial catalogue: hero → systems row → accessories grid → final CTA.
+ * is_shop() routing is handled by WooCommerce; this template short-circuits
+ * WC's standard archive output and emits our bespoke markup directly.
+ *
+ * @package Anchor_Starter_Child
  */
 
 get_header();

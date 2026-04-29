@@ -25,7 +25,10 @@ $obj           = get_queried_object();
 $current_slug  = ( $obj && isset( $obj->post_name ) ) ? $obj->post_name : '';
 $home_slugs    = array( 'home-v1', 'home-v2', 'home-v3', 'home-v4' );
 $is_home_var   = is_front_page() || in_array( $current_slug, $home_slugs, true );
-$is_shop       = is_post_type_archive( 'laser_product' ) || is_singular( 'laser_product' );
+$is_shop       = ( function_exists( 'is_shop' ) && is_shop() )
+              || ( function_exists( 'is_product' ) && is_product() )
+              || ( function_exists( 'is_product_category' ) && is_product_category() )
+              || ( function_exists( 'is_product_tag' ) && is_product_tag() );
 $show_site_nav = $is_home_var || $is_shop;
 
 // Resolve the slug that the Versions dropdown should mark active. On the
