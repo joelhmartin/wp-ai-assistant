@@ -11,25 +11,17 @@
  */
 
 if ( ! function_exists( 'anchor_starter_child_enqueue_styles' ) ) :
-	/**
-	 * Enqueue child-theme stylesheets.
-	 *
-	 * - client-tokens.css  – custom-property overrides (loads after parent CSS).
-	 * - client-overrides.css – any additional CSS tweaks (loads after tokens).
-	 */
 	function anchor_starter_child_enqueue_styles() {
 
 		$theme_version = wp_get_theme()->get( 'Version' );
 
-		// Client design-token overrides (loaded after all parent CSS).
+		// Always: brand tokens + general overrides.
 		wp_enqueue_style(
 			'anchor-child-tokens',
 			get_stylesheet_directory_uri() . '/assets/css/client-tokens.css',
 			array( 'anchor-responsive' ),
 			$theme_version
 		);
-
-		// Client CSS overrides (loaded after tokens).
 		wp_enqueue_style(
 			'anchor-child-overrides',
 			get_stylesheet_directory_uri() . '/assets/css/client-overrides.css',
@@ -37,59 +29,76 @@ if ( ! function_exists( 'anchor_starter_child_enqueue_styles' ) ) :
 			$theme_version
 		);
 
-		// Front-page-only assets: bespoke editorial homepage.
-		if ( is_front_page() ) {
+		// Bespoke editorial chrome contexts: any home-v* slug, the front page,
+		// or the shop archive / single product.
+		$obj           = get_queried_object();
+		$slug          = ( $obj && isset( $obj->post_name ) ) ? $obj->post_name : '';
+		$home_slugs    = array( 'home-v1', 'home-v2', 'home-v3', 'home-v4' );
+		$is_home_var   = is_front_page() || in_array( $slug, $home_slugs, true );
+		$is_shop       = is_post_type_archive( 'laser_product' ) || is_singular( 'laser_product' );
+		$bespoke       = $is_home_var || $is_shop;
 
-			// Google Fonts for the homepage (Cormorant 300/400/500, Inter, JetBrains Mono).
+		if ( $bespoke ) {
 			wp_enqueue_style(
 				'deka-home-fonts',
 				'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap',
 				array(),
 				null
 			);
-
 			wp_enqueue_style(
-				'deka-home',
-				get_stylesheet_directory_uri() . '/assets/css/deka-home.css',
+				'home-v1',
+				get_stylesheet_directory_uri() . '/assets/css/home-v1.css',
 				array( 'anchor-child-tokens', 'deka-home-fonts' ),
 				$theme_version
 			);
-
+			wp_enqueue_style(
+				'site-nav',
+				get_stylesheet_directory_uri() . '/assets/css/site-nav.css',
+				array( 'home-v1' ),
+				$theme_version
+			);
 			wp_enqueue_script(
-				'deka-home',
-				get_stylesheet_directory_uri() . '/assets/js/deka-home.js',
+				'home-v1-js',
+				get_stylesheet_directory_uri() . '/assets/js/home-v1.js',
 				array(),
 				$theme_version,
 				true
 			);
 		}
 
-		// Shop-only assets (archive + single laser_product).
-		if ( is_post_type_archive( 'laser_product' ) || is_singular( 'laser_product' ) ) {
-			wp_enqueue_style(
-				'deka-home-fonts',
-				'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap',
-				array(),
-				null
-			);
-			wp_enqueue_style(
-				'deka-home',
-				get_stylesheet_directory_uri() . '/assets/css/deka-home.css',
-				array( 'anchor-child-tokens', 'deka-home-fonts' ),
-				$theme_version
-			);
+		// Per-version overlays — only for the matching slug.
+		foreach ( array( 'home-v2', 'home-v3', 'home-v4' ) as $v ) {
+			if ( $slug !== $v ) {
+				continue;
+			}
+			$css_path = get_stylesheet_directory() . '/assets/css/' . $v . '.css';
+			$js_path  = get_stylesheet_directory() . '/assets/js/'  . $v . '.js';
+			if ( file_exists( $css_path ) ) {
+				wp_enqueue_style(
+					$v,
+					get_stylesheet_directory_uri() . '/assets/css/' . $v . '.css',
+					array( 'home-v1' ),
+					$theme_version
+				);
+			}
+			if ( file_exists( $js_path ) ) {
+				wp_enqueue_script(
+					$v . '-js',
+					get_stylesheet_directory_uri() . '/assets/js/'  . $v . '.js',
+					array(),
+					$theme_version,
+					true
+				);
+			}
+		}
+
+		// Shop also loads deka-shop.css on top of home-v1.css.
+		if ( $is_shop ) {
 			wp_enqueue_style(
 				'deka-shop',
 				get_stylesheet_directory_uri() . '/assets/css/deka-shop.css',
-				array( 'deka-home' ),
+				array( 'home-v1' ),
 				$theme_version
-			);
-			wp_enqueue_script(
-				'deka-home',
-				get_stylesheet_directory_uri() . '/assets/js/deka-home.js',
-				array(),
-				$theme_version,
-				true
 			);
 		}
 	}
