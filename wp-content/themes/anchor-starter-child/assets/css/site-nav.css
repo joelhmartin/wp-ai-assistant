@@ -35,9 +35,10 @@
 }
 .site-nav .nav-dropdown__menu {
 	position: absolute;
-	top: calc(100% + 0.75rem);
+	top: 100%;
 	left: 50%;
 	transform: translateX(-50%) translateY(-4px);
+	margin-top: 0.75rem;
 	min-width: 12rem;
 	padding: 0.5rem 0;
 	background: var(--deka-ivory, #f5f4ef);
@@ -48,6 +49,16 @@
 	pointer-events: none;
 	transition: opacity 160ms ease, transform 160ms ease;
 	z-index: 50;
+}
+/* Transparent bridge so hover doesn't drop while the cursor crosses the
+   visual gap between the trigger and the menu. */
+.site-nav .nav-dropdown__menu::before {
+	content: "";
+	position: absolute;
+	top: -0.75rem;
+	left: 0;
+	right: 0;
+	height: 0.75rem;
 }
 .site-nav .nav-dropdown:hover .nav-dropdown__menu,
 .site-nav .nav-dropdown:focus-within .nav-dropdown__menu {
