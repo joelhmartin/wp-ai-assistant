@@ -116,54 +116,9 @@ body.home-v1 .anchor-reveal-stagger > * {
 .home-v1 .rule { height: 1px; background: var(--deka-rule); }
 .home-v1 .rule-light { height: 1px; background: var(--deka-rule-light); }
 
-/* ——— nav ——— */
-body.home-v1 .anchor-nav { display: none !important; } /* hide framework pill nav, use bespoke */
-.home-v1 .site-nav {
-    position: fixed; top: 0; right: 0; left: 0; z-index: 50;
-    background: rgba(245, 244, 239, 0.92);
-    border-bottom: 1px solid var(--deka-rule);
-    transition: background .4s ease, border-color .4s ease, color .4s ease, top .2s ease;
-}
-/* Offset nav below the WP admin bar when logged in. */
-body.admin-bar.home-v1 .site-nav { top: 32px; }
-@media screen and (max-width: 782px) {
-    body.admin-bar.home-v1 .site-nav { top: 46px; }
-}
-.home-v1 .site-nav.nav--dark {
-    background: rgba(4, 5, 65, 0.82);
-    border-bottom-color: rgba(245, 244, 239, 0.12);
-    color: var(--deka-ivory);
-}
-.home-v1 .nav-row {
-    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-    height: 72px;
-}
-.home-v1 .nav-logo svg,
-.home-v1 .nav-logo img { height: 44px; width: auto; }
-.home-v1 .nav-links { display: flex; gap: 36px; justify-content: center; }
-.home-v1 .nav-link {
-    font-size: 13px; letter-spacing: 0.02em; position: relative; padding: 6px 0;
-}
-.home-v1 .nav-link::after {
-    content: ''; position: absolute; inset: auto 0 0 0; height: 1px; background: currentColor;
-    transform: scaleX(0); transform-origin: left;
-    transition: transform .45s cubic-bezier(.2, .7, .2, 1);
-}
-.home-v1 .nav-link:hover::after { transform: scaleX(1); }
-.home-v1 .nav-right { display: flex; gap: 18px; justify-content: flex-end; align-items: center; }
-.home-v1 .nav-cta {
-    display: inline-flex; align-items: center; gap: 10px;
-    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-    padding: 12px 20px; border: 1px solid currentColor; border-radius: 999px;
-    transition: background .3s ease, color .3s ease;
-}
-.home-v1 .nav-cta:hover { background: var(--deka-ink); color: var(--deka-ivory); border-color: var(--deka-ink); }
-.home-v1 .site-nav.nav--dark .nav-cta:hover { background: var(--deka-ivory); color: var(--deka-ink); border-color: var(--deka-ivory); }
-@media (max-width: 880px) {
-    .home-v1 .nav-links { display: none; }
-    .home-v1 .nav-row { grid-template-columns: 1fr auto; }
-    .home-v1 .nav-right .nav-link { display: none; }
-}
+/* Nav layout moved to assets/css/site-nav.css (loaded on every bespoke
+   page) so the unified header has a consistent baseline regardless of
+   which per-version stylesheet is active. */
 
 /* ——— hero ——— */
 .home-v1 .hero {
