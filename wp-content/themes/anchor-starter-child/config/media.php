@@ -49,6 +49,9 @@ return [
 	'blog_hero'            => 'https://images.unsplash.com/photo-1606265752439-1f18756aa5fc?auto=format&fit=crop&w=1920&h=1080&q=80',
 	'blog_hero_mobile'     => 'https://images.unsplash.com/photo-1606265752439-1f18756aa5fc?auto=format&fit=crop&w=800&h=1200&q=80',
 
+	// ── Per-version homepage assets ─────────────────────────────────
+	'home_v3_hero_poster' => '/assets/images/v3/hero-poster.jpg',
+
 	// ── Backgrounds / decorative ────────────────────────────────────
 	'skyline'        => 'https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=1920&h=800&q=80',
 	'cta_background' => 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1920&h=1080&q=80',
