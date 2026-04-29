@@ -49,7 +49,7 @@ $voices_count = count( $safe_voices );
 ?>
 
 <!-- 01 — Hero -->
-<header class="hero" id="top" data-section-type="deka_hero">
+<header class="hero" id="top" data-section-type="hero">
     <div class="hero-grain"></div>
     <div class="hero-beam b1"></div>
     <div class="hero-beam b2"></div>
@@ -62,7 +62,7 @@ $voices_count = count( $safe_voices );
 
         <div>
             <h1 class="display hero-headline" style="color: var(--deka-ivory);">
-                <span class="line"><span>The standarg</span></span>
+                <span class="line"><span>The standard</span></span>
                 <span class="line"><span>of <em>precision light</em></span></span>
                 <span class="line"><span>in modern dentistry.</span></span>
             </h1>
@@ -97,11 +97,11 @@ $voices_count = count( $safe_voices );
 </header>
 
 <!-- 02 — Manifesto -->
-<section class="manifesto" data-section-type="deka_manifesto">
+<section class="manifesto" data-section-type="manifesto">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 01</div>
-            <div class="section-title">Manifesto</div>
+            <div class="section-title">The Deka Story</div>
             <div class="section-label">On light, on certainty</div>
         </div>
 
@@ -129,11 +129,11 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 03 — Capabilities -->
-<section class="capabilities" id="technology" data-section-type="deka_capabilities">
+<section class="capabilities" id="technology" data-section-type="capabilities">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 02</div>
-            <div class="section-title">What DEKA Changes</div>
+            <div class="section-title">What Deka Changes</div>
             <div class="section-label">Benefits · Innovation · Precision · Outcomes</div>
         </div>
 
@@ -188,7 +188,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 04 — Lineup -->
-<section class="lineup" id="products" data-section-type="deka_lineup">
+<section class="lineup" id="products" data-section-type="lineup">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 03</div>
@@ -270,7 +270,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 05 — Flagship (SmartPerio) -->
-<section class="flagship" data-section-type="deka_flagship">
+<section class="flagship" data-section-type="flagship">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 04</div>
@@ -320,7 +320,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 06 — Showcase: US-20D (light, visual left) -->
-<section class="showcase" data-section-type="deka_showcase">
+<section class="showcase" data-section-type="showcase">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 05.01</div>
@@ -370,7 +370,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 07 — Showcase: SmartXide Ultraspeed 2 (dark, visual right) -->
-<section class="showcase dark flip" data-section-type="deka_showcase">
+<section class="showcase dark flip" data-section-type="showcase">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 05.02</div>
@@ -420,7 +420,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 08 — Outcomes -->
-<section class="outcomes" id="outcomes" data-section-type="deka_outcomes">
+<section class="outcomes" id="outcomes" data-section-type="outcomes">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 06</div>
@@ -457,7 +457,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 09 — Voices -->
-<section class="voices" id="clinicians" data-section-type="deka_voices">
+<section class="voices" id="clinicians" data-section-type="voices">
     <div class="container">
         <div class="section-head">
             <div class="section-index">— 07</div>
@@ -487,7 +487,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 10 — Trust -->
-<section class="trust" data-section-type="deka_trust">
+<section class="trust" data-section-type="trust">
     <div class="container trust-wrap">
         <div class="trust-label">Trusted by teaching institutions and top-quartile practices across 54 countries.</div>
         <div class="trust-logos">
@@ -502,7 +502,7 @@ $voices_count = count( $safe_voices );
 </section>
 
 <!-- 11 — Final CTA -->
-<section class="final" id="final" data-section-type="deka_final">
+<section class="final" id="final" data-section-type="final">
     <div class="container final-inner">
         <span class="eyebrow">— A private conversation</span>
         <h2 class="display">The instrument you've been waiting for<br>is waiting for <em>you</em>.</h2>
