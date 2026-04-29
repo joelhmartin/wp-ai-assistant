@@ -183,9 +183,8 @@ add_action( 'after_setup_theme', function () {
 
 /**
  * The legacy `laser_product` CPT was migrated to WooCommerce `product`
- * posts. Registration is intentionally deregistered to free the /shop/
- * namespace for WC. The 31 posts remain in the database for rollback;
- * once the WC migration is verified in production, they can be deleted.
+ * posts and the source data has been purged from the database.
+ * Registration intentionally absent to free the /shop/ namespace for WC.
  */
 
 /**
