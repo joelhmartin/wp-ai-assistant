@@ -10,15 +10,92 @@ This is a **WordPress installation** running locally via **DevKinsta**. The acti
 - **PHP version**: 7.4+ required
 - **WordPress version**: 6.4+ required, tested up to 6.8
 - **Database**: MySQL via DevKinsta (`DB_NAME: testthemedeka`)
-- **Local site URL**: `https://testthemedeka.local` (managed by DevKinsta)
+- **Local site URL**: `https://test-theme-deka.local` (managed by DevKinsta)
 
 There is no build step, package manager, or test framework. This is a classic PHP WordPress theme — edit files and reload.
+
+## Direction (2026-05+) — read this first
+
+The architecture is shifting. The sections below this one describe both the **canonical model going forward** and the **legacy mechanics still in the codebase**. When in doubt, follow the direction described here, not the legacy patterns.
+
+### Package layout (target: 3 packages → 2)
+
+| Package | Role | Status |
+|---|---|---|
+| **`anchor-framework`** (theme) | Rendering + utility classes + AI code editor + admin UIs | Active — `anchor-page-assistant` will be merged in |
+| **`anchor-starter-child`** (theme) and other child themes | Per-site code: brand tokens, `page-content/*.php` files, site-specific CPTs/WC overrides | Active |
+| **Anchor Tools** (plugin) | Managed content components (sliders, galleries, popups, etc.) + site-level config UI | Active — stays separate, intentionally portable across themes/sites |
+| **`anchor-page-assistant`** (plugin) | AI code editor, file writer, frontend chat | Being merged into `anchor-framework` |
+
+Mental model:
+- **Theme** = how the site looks and how I edit it (rendering + utilities + editor).
+- **Plugin (Anchor Tools)** = what content components I can drop in (sliders, galleries, popups, site config).
+- **Child theme** = this specific site.
+
+### Page authoring model (canonical)
+
+1. **Pages are direct-PHP files.** Each lives at `child-theme/page-content/{slug}.php` and emits raw HTML using parent utility classes + shortcodes. No section schema, no `{type, variant, props}` arrays, no per-section validators.
+2. **Templates are scaffolds, not inheritance.** When creating a new page, the editor copies a template file (e.g. `templates/service-page.php`) into a fresh `page-content/{slug}.php`. From that moment on, the new file is independent — editing the template later does **not** propagate to existing pages, and editing a page does not affect the template. Conflicts impossible by design.
+3. **Live propagation happens via shortcodes** — opt-in, per element. CTAs, contact bands, footers, brand info, business hours, etc. live as Anchor Tools shortcodes; editing the shortcode once updates every page that uses it. The author discipline at template-write time: anything you might want to change globally → shortcode; anything truly per-page → hardcoded inline.
+4. **Site-level config** (brand colors, logos, business name, phone, address, social, fonts) lives in Anchor Tools with a media-library-picker UI similar to the existing `anchor-shortcodes` module. Renders into the page via shortcodes (`[business_phone]`, `[business_logo]`) and into the document via CSS custom properties (`--anchor-color-primary` etc.) injected in `wp_head`.
+5. **AI code editor** evolves from `anchor-page-assistant`. Surfaces: file tree of all theme files, code editor (Monaco/CodeMirror), per-file chat sessions, page-template starter library, header/footer toggle per page, utility-class reference sidebar, paste-HTML-as-section flow.
+
+### What's legacy (kept working, not the path forward)
+
+- **Section template system** at `template-parts/sections/*.php` (`hero`, `split-content`, `iso-split`, `card-grid`, `cta-band`, etc.) — kept for backward compat with existing pages that compose them via `anchor_set_template_data()` + `get_template_part()`, and for the config-driven fallback path. Do not author new pages against this system.
+- **Config-driven page paradigm** (`config/pages/*.php` arrays + `anchor_render_sections()`) — kept as fallback when no `page-content/{slug}.php` override exists. Do not migrate new pages to this path.
+- **Section validators** in `inc/validation.php`, the `{type, variant, props}` template-data bridge, and the section-config props (`flush_bottom`, `dark`, `variant`) — all tied to the legacy section system.
+
+If a future task touches one of these legacy pieces, evaluate whether it can be migrated to the canonical model instead of extended.
+
+---
 
 ## Architecture: Anchor Framework
 
 A reusable WordPress parent theme (`anchor-framework`) plus a per-client child theme (`anchor-starter-child`, currently configured for the Deka site). The parent provides the rendering engine, generic section templates, components, and CSS tokens. The child provides all client-specific markup, content, branding, CPTs, and bespoke styling.
 
-### Two rendering paradigms
+### Parent vs. child split
+
+Three rules:
+
+1. **Parent owns mechanics.** Slider/carousel logic, full-width background-video sections, hero variants, animations, scroll behaviors, section scaffolds, base CSS tokens, component classes — all in `anchor-framework`. A child opts in by writing markup with parent classes (e.g., a `<video class="anchor-hero-video">` inside `.anchor-hero--video` for a bg-video hero).
+2. **Children own modifiers + composition.** Token overrides (button radius, heading scale, brand colors), brand assets, and `page-content/` files composing parent components. No bespoke mechanics — if a child needs new behavior, it goes in the parent first as a generic component.
+3. **Hard rule — zero domain-specific names in the parent.** Class/file/function names describe shape and role (`anchor-hero--video`, `anchor-stat-band`), never industry (no `dental-*`, `roofing-*`, `cta-insurance-*`). Keeps every parent style reusable.
+
+**Grandchild themes** are allowed when a single site needs further customization beyond what its child theme provides — e.g. `anchor-starter-child` → `deka-site` grandchild for site-only overrides. Same rules cascade: grandchild adds tokens + page-content, never re-implements mechanics.
+
+### Utility class system (parent)
+
+The parent ships a scoped utility-class vocabulary that is the **primary styling tool** for child `page-content/` files. Bespoke CSS is the exception, not the rule. Goal: enough surface area to compose any layout the child themes need, without Tailwind-scale bloat.
+
+**Class families (all `anchor-` prefixed):**
+
+- **Grid** — `anchor-grid-{n}` for n columns (1–6+), with mobile collapse rules baked into the parent. Example collapses: `anchor-grid-6` → 3 cols (md) → 2 cols (sm); `anchor-grid-4` → 2 cols (sm); `anchor-grid-3` → 1 col (sm). Children never re-derive these breakpoints.
+- **Grid center** — `anchor-grid-center` modifier that centers orphan items in the last row (the perpetually-missing CSS feature). Implementation may use flex-with-flex-basis under the hood — same visual result, hidden behind the grid-named class.
+- **Flex** — `anchor-flex`, `anchor-flex-row`, `anchor-flex-col`, `anchor-flex-center`, etc. for one-dimensional layouts.
+- **Reverse** — `anchor-reverse` flips order on a flex/grid section so a right-side image becomes top-of-stack on mobile via `column-reverse`. Composable with the layout utilities.
+- **Typography** — text-size scale, weight, alignment, line-height, font-family token shortcuts.
+- **Sizing/spacing** — max-width, margin, padding, gap on a consistent scale.
+
+**Rules:**
+- Utilities live in `anchor-framework/assets/css/utilities.css` (or equivalent), loaded with the rest of the parent CSS.
+- Utilities are pure: no industry-specific names, no client-specific tokens. Values reference parent design tokens.
+- Children consume utilities directly in `page-content/` markup. If a child needs a utility that doesn't exist, it goes in the parent — never inline-styled or one-off-classed in the child.
+- Keep the surface area scoped to layout/display/typography/sizing essentials. Resist adding the long tail (every color, every state, every pseudo-variant) — those belong in component or token CSS, not utilities.
+
+### Component layer (Anchor Tools plugin)
+
+Reusable, user-managed UI components live in the **Anchor Tools** plugin at `wp-content/plugins/Anchor Tools/`, not in the theme. Themes provide structure and styling; the plugin provides the components themselves.
+
+**Boundary:**
+- **Plugin (Anchor Tools)** — anything the user manages as content with a back-end UI: testimonial sliders, video galleries, logo reels, image carousels, FAQ accordions, team grids, popups, mega menus, store locator, events, etc. Each is a self-contained module under `anchor-{name}/` with its own CPT or settings page, rendered via shortcode. Already 17 modules; new ones follow the same pattern.
+- **Theme (parent + children)** — page structure, layout primitives, typography, color tokens, hero/section scaffolds, bg-video logic, navigation chrome, animations, scroll behaviors. Theme styles the *containers*; plugin fills them with managed components via shortcodes.
+
+The plugin documents its own architecture in `wp-content/plugins/Anchor Tools/CLAUDE.md` and the module recipe in `ADDING-MODULES.md` — those are the source of truth when working on plugin code or adding new components. The plugin's runtime AI assistant is model-agnostic (not Claude-specific).
+
+To scaffold a new component, use the `anchor-tools-add-component` skill, which wraps the ADDING-MODULES.md recipe.
+
+### Two rendering paradigms (legacy detail — see Direction above)
 
 The framework supports two ways to render a page. Both run through `front-page.php` / `page.php`, which call `anchor_load_page_content($slug)` to look for a `page-content/{slug}.php` file in the **child theme** first.
 
@@ -130,14 +207,14 @@ All CSS in the parent uses class-based `anchor-` prefixes with BEM-like naming. 
 </div>
 ```
 
-### Section Config Props (config-driven path only)
+### Section Config Props (legacy / config-driven path only)
 
 Generic sections in page configs support:
 - `flush_bottom` (bool) — Removes bottom padding (class `anchor-section--flush-bottom`). Use when the next section shares the same background color.
 - `dark` (bool) — Navy background with white text.
 - `variant` (string) — Section-specific variants (e.g., hero: full/short/centered, cta_band: light/dark/accent/card/expand).
 
-### Template Data Bridge (config-driven path only)
+### Template Data Bridge (legacy / config-driven path only)
 
 Generic section templates receive `{type, variant, props}` via `anchor_get_template_data()`. Always extract props:
 ```php
@@ -160,7 +237,8 @@ Named keys in config (e.g., `'image' => 'home_hero'`) are resolved via `anchor_r
 
 - Parent functions use the `anchor_` prefix; parent hooks use the `anchor_framework_` prefix.
 - Parent CSS classes use the `anchor-` prefix with BEM naming.
-- **No client-specific names in the parent theme.** No `deka_*` types, classes, or assets in `anchor-framework/`. If a section feels reusable, generalize it (e.g., `editorial-stat-band`); if it's bespoke to the Deka site, leave it as inline markup in `page-content/`.
+- **No client- or industry-specific names in the parent theme.** No `deka_*`, `dental-*`, `roofing-*`, `cta-insurance-*` types/classes/assets in `anchor-framework/`. Parent names describe shape/role (`anchor-hero--video`, `anchor-stat-band`), never the domain. If a section feels reusable, generalize it; if it's truly bespoke to one site, leave it as inline markup in the child's `page-content/`.
+- **No bespoke mechanics in child themes.** Sliders, video heroes, animations, scroll behaviors all live in the parent as generic components. A child opts in by writing markup with the right parent classes — it does not re-implement the behavior.
 - **No inline styles** — use CSS classes. Only dynamic PHP values may be inline.
 - Ghost buttons (`.anchor-btn--ghost`) auto-adapt: navy on light backgrounds, white on dark (via parent context selectors).
 - `.anchor-heading-group` appends `heading_accent` text if it's not a substring of the heading.
